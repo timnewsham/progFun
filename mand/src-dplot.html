@@ -1,0 +1,32 @@
+<html>
+<body>
+<font size=+10>
+<pre>
+def p(f,x,y,u,v,w=125,h=39,c=' abcdefg'):
+ return '\n'.join(''.join(
+     c[f(x+m*(u-x)/(w-1),y+n*(v-y)/(h-1))%len(c)] 
+     for m in xrange(w)) 
+   for n in xrange(h))
+</pre>
+<font color=green>
+<pre>
+W = 125
+H = 39
+CHARS = 'abcdefg'
+def plot(x0, y0, x1, y1) :
+    for yy in xrange(H) :
+        y = y0 + (y1-y0) * yy / (H - 1)
+        for xx in xrange(W) :
+            x = x0 + (x1-x0) * xx / (W - 1)
+            n = mand(complex(x, y))
+            if n == MAX :
+                ch = ' '
+            else :
+                ch = CHARS[n % len(CHARS)]
+            sys.stdout.write(ch)
+        sys.stdout.write('\n')
+</pre>
+</font>
+</font>
+</body>
+</html>

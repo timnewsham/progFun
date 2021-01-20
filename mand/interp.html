@@ -1,0 +1,108 @@
+<html>
+<title>Mand</title>
+<head>
+
+<script>
+
+scale = 1;
+
+line = function(draw, x0, y0, x1, y1) {
+    draw.beginPath();
+    draw.moveTo(x0, y0);
+    draw.lineTo(x1, y1);
+    draw.stroke();
+}
+
+circle = function(draw, x, y, r) {
+    draw.beginPath();
+    draw.arc(x, y, r, 0, 2*Math.PI, true);
+    draw.fill();
+}
+
+redraw = function() {
+    console.log("redraw");
+    var ch = document.getElementById("drawCanvas");
+    var W = ch.width/scale;
+    var H = ch.height/scale;
+    var draw = ch.getContext("2d");
+
+    draw.fillStyle = 'white';
+    draw.fillRect(0, 0, W, H);
+
+    var CNT = 5;
+    var U0 = -3.0;
+    var U1 = 3.0;
+    var X0 = 0.1 * W;
+    var X1 = 0.9 * W;
+    var Y = H / 2;
+
+    draw.strokeStyle = 'black';
+    draw.lineWidth = 5;
+    draw.font = "20pt Arial";
+
+    draw.textBaseline = "middle";
+
+    draw.fillStyle = 'green';
+    draw.textAlign = "right";
+    draw.fillText(U0.toFixed(2), X0 - 20, Y);
+    draw.textAlign = "left";
+    draw.fillText(U1.toFixed(2), X1 + 20, Y);
+
+    draw.fillStyle = 'black';
+    draw.font = "20pt Arial";
+    draw.textAlign = "center";
+
+
+    line(draw, X0, Y, X1, Y);
+
+    for(var cnt = 0; cnt < max; cnt++) {
+        var x = X0 + (X1-X0) * cnt / (CNT - 1);
+        var u = U0 + (U1-U0) * cnt / (CNT - 1);
+        circle(draw, x, Y, 8);
+        draw.fillText(u.toFixed(2), x, Y + 40);
+
+        var form = U0.toFixed(0) + "+" + (U1-U0).toFixed(0) + "*" + cnt + "/" + (CNT-1);
+        draw.fillText(form, x, Y - 40);
+    }
+    return false;
+};
+
+animcnt = 0;
+max = 0;
+
+anim = function() {
+    if(animcnt-- <= 0) {
+        animcnt = 6;
+        max = 0;
+    }
+    max += 1;
+    redraw();
+    setTimeout(anim, 2500);
+}
+
+run = function() {
+    var ch = document.getElementById("drawCanvas");
+    //var draw = ch.getContext("2d");
+    //draw.scale(scale, scale);
+    
+    anim();
+}
+
+</script>
+</head>
+
+<body onload="run();">
+<center>
+<canvas id="drawCanvas" width="800" height="400">
+picture here
+</canvas>
+<br>
+<font style="font-size:30px">
+Linear Interpolation<br>
+Distance = (3 - (-3)) = 6<br>
+Points = 5
+</font>
+</center>
+
+</body>
+</html>

@@ -1,0 +1,59 @@
+<html>
+<title>WWW / OUDL - Disgusting Python</title>
+<script>
+pages = [
+    "title.html",
+    "mand.html",
+    "algo.html",
+    "algo2.html",
+    "mand-coord.html",
+    "src-julia.html",
+    "color.html",
+    "interp.html",
+    "src-plot.html",
+    "simple-out.txt",
+    "disgusting.html",
+    "src.html",
+    "src-wrapped.html",
+    "src-djulia.html",
+    "src-dplot.html",
+    "src-drun.html",
+    "mand5-out.txt",
+    "julia.html",
+    "moire.html",
+    "zoom.html",
+]
+idx = 0;
+
+adj = function(n) {
+    idx += n;
+    if(idx < 0) idx = 0;
+    if(idx >= pages.length) idx = pages.length - 1;
+    var page = pages[idx];
+    console.log(n, idx, page);
+    document.getElementById('showFrame').src = page;
+    //document.getElementById('descr').innerHtml = "loading " + page + "...";
+}
+
+run = function() {
+    adj(0);
+}
+
+</script>
+<head>
+</head>
+<body onload="run()">
+
+<table width=100% height=100%>
+  <tr>
+    <td><p onclick="adj(-1)">PREV</p></td>
+    <td width=95%><p id="descr"><a href=".">DIR</a></p></td>
+    <td><p onclick="adj(1)">NEXT</p></td>
+  </tr>
+  <tr height=95%>
+    <td colspan=3 width=100%><iframe id="showFrame" src="about:blank" width=100% height=100% frameborder=0></iframe></td>
+  </tr>
+</table>
+
+</body>
+</html>

@@ -1,0 +1,89 @@
+
+Title
+- some fun at python's expense
+
+Mand set
+- today we'll be talking about this picture.
+  You've probably seen it before, 
+  Its called the mandelbrot set.  
+  It's a mathematical set, but don't worry
+  the math is very simple.
+
+Algorithm
+- the math is based around a simple question
+  about this procedure.  You start with some
+  value C and initially set X to zero.  Then
+  you repeatedly compute a new X using this 
+  equation.  The question is this: does the
+  number X ever grow large?  Any value that does
+  not grow large is in the mandelbrot set.
+
+Algorithm 2
+- When C is zero, the value of X remains zero.
+- When C is 2, the value of X grows quickly.
+
+mand code
+- Writing this up in python is pretty straightforward.
+  You start with x set to zero (passed in as an argument)
+  and you keep iterating until you found that x has grown
+  large or that you've iterated enough times to get some
+  confidence that it never grows large.
+  When the value returned is MAX, the value passed in
+  is in the mandelbrot set.
+  The higher the value of MAX is the more accurate the
+  calculation will be, but since MAX is never infinite,
+  we will never get complete accuracy.
+
+color mand set
+- The mandelbrot set is computed over the complex plane.
+  Each point in the plane corresponds to a complex number,
+  the x direction is the real part and the Y direction is
+  the imaginary part.  We plot each point with black if it
+  is in the set (mand returned MAX).
+  If it is not in the set we pick a color based on how
+  "close" it was to the set, which gives an elegant
+  "glow" around the mandelbrot set.
+  This is why our mand function returned an integer rather
+  than just "true" or "false"
+
+interpolation
+- in order to make a plot we have to generate a value
+  of C for each point.  To map between the screen
+  coordinates and some arbitrary coordinate system
+  we use linear interpolation.  
+  This is a mathematical operation and I promise you
+  after this there will be no more math!
+  Here we see an example of the process for mapping
+  to values from -3 to 3.  The distance between the two
+  points is 6 and if we want to make 5 points we need
+  to start with -3 and add four increments of 1/4th
+  the distance.
+
+plot code
+- with interpolation under our hat the code to plot
+  the mandelbrot set is not very complicated.  We
+  iterate over each line in our plot.  Then we 
+  iterate over each column of our plot.  At each
+  step we calculate the coordinates in the complex
+  plane with linear interpolation.  Then we call
+  the mand function and use its return value to
+  calculate a color.  
+  To keep things simple we print out characters instead
+  of colors and a newline character after each line.
+
+output
+- and this is what the output looks like!
+
+disgusting
+- ok so far we just did some straightforward coding. 
+  the only thing unusual is that we were plotting the
+  code in ascii.  Thats a good start, but lets get
+  a little more sick.  We're going to abuse python a
+  bit to write an obfuscated program based on this code.
+  Anyone who has coded in python knows that python was
+  designed to discourage bad coding, so we have to work
+  hard to muck up the code.
+
+
+
+

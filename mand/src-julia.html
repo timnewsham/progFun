@@ -1,0 +1,19 @@
+<html>
+<body>
+<font size=+10>
+<pre>
+MAX = 256
+
+def julia(x, c) :
+    n = 0
+    while n &lt; MAX and abs(x) &lt; 2.0 :
+        n += 1
+        x = x * x + c
+    return n
+
+def mand(c) :
+    return julia(0, c)
+</pre>
+</font>
+</body>
+</html>

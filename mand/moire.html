@@ -1,0 +1,114 @@
+<html>
+<title>Mand</title>
+<head>
+
+<script>
+scale = 4;
+
+floor = function(x) {
+    if(x<0)
+        return -Math.floor(-x);
+    return Math.floor(x);
+}
+
+mod = function(x) {
+    x = x % 3;
+    if (x < 0)
+        x *= -1;
+    return x;
+}
+
+moire = function(u, v) {
+    //console.log(u, v, u*v, floor(u*v), mod(floor(u*v)));
+    return mod(floor(u*v));
+}
+
+colors = ["white", "black", "rgb(120,120,180)"];
+redraw = function() {
+    console.log("redraw");
+    var ch = document.getElementById("drawCanvas");
+    var W = ch.width/scale;
+    var H = ch.height/scale;
+    var draw = ch.getContext("2d");
+
+    draw.fillStyle = 'white';
+    draw.fillRect(0, 0, W, H);
+
+    var su = cx - w/2;
+    var d = w / (W-1);
+    var sv = cy - d*(H-1)/2;
+
+    draw.fillStyle = 'black';
+        for(var y = 0, v = sv; y < H; y++, v += d) {
+    for(var x = 0, u = su; x < W; x++, u += d) {
+            var m = moire(u, v);
+            draw.fillStyle = colors[m];
+            //console.log(x, y, u, v, m);
+            draw.fillRect(x,y, 1, 1);
+        }
+    }
+    return false;
+};
+
+setHeight = function() {
+    var hin = document.getElementById("hin");
+    var ch = document.getElementById("drawCanvas");
+    console.log("set height: " + hin.value);
+    ch.height = hin.value;
+    redraw();
+    return false;
+};
+setWidth = function() {
+    var win = document.getElementById("win");
+    var ch = document.getElementById("drawCanvas");
+    console.log("set width: " + win.value);
+    ch.width = win.value;
+    redraw();
+    return false;
+};
+
+animcnt = 0;
+        cx = 0;
+        cy = 0;
+        w = 25;
+
+anim = function() {
+    if(animcnt-- <= 0) {
+        animcnt = 200;
+    }
+    var f = 2;
+    w *= 0.99;
+    cx -= f * 0.0003 * w ;
+    cy -= f * 0.001 * w;
+    redraw();
+    setTimeout(anim, 100);
+}
+
+run = function() {
+    var ch = document.getElementById("drawCanvas");
+    var draw = ch.getContext("2d");
+    draw.scale(scale, scale);
+    
+    //anim();
+    redraw();
+}
+
+</script>
+</head>
+
+<body onload="run();">
+<center>
+<canvas id="drawCanvas" width="800" height="500"> 
+picture here
+</canvas>
+
+<br>
+<font style="font-size:30px">
+<a href=http://en.wikipedia.org/wiki/Moire_pattern>
+http://en.wikipedia.org/wiki/Moire_pattern
+</a>
+</font>
+</center>
+
+</body>
+</html>
