@@ -1,0 +1,117 @@
+<html>
+<script>
+// global variables
+// 30x20 playfield of 10x10 blocks
+W=30;
+H=20;
+BLOCK=10;
+TICK = 1000 / 10;
+
+GROWTIME = 10;
+time = GROWTIME;
+
+snakeSize = 3;
+
+snake = [];
+head = [15, 10];
+dir = [1, 0];
+
+// See https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial
+// for details on how to draw on the canvas element
+draw = function() {
+  // draw black background
+  ctx.fillStyle = 'black';
+  ctx.fillRect(0, 0, W*BLOCK, H*BLOCK);
+
+  // draw snake's body
+  ctx.fillStyle = 'lime';
+  var collision = false;
+  for(var idx in snake) {
+    ctx.fillRect(BLOCK*snake[idx][0], BLOCK*snake[idx][1], BLOCK, BLOCK);
+    if(snake[idx][0] == head[0] && snake[idx][1] == head[1]) {
+      collision = true;
+    }
+  }
+
+  // draw snake's head
+  if(collision) {
+    // draw the head in red and slightly bigger
+    ctx.fillStyle = 'red';
+    ctx.fillRect(BLOCK*head[0] - 2, BLOCK*head[1] - 2, BLOCK + 4, BLOCK + 4);
+  } else {
+    ctx.fillStyle = 'green';
+    ctx.fillRect(BLOCK*head[0], BLOCK*head[1], BLOCK, BLOCK);
+  }
+  
+  return collision;
+}
+
+onKey = function(ev) {
+  //console.log(ev);
+  if(ev.key == 'ArrowUp')
+    dir = [0, -1];
+  if(ev.key == 'ArrowDown')
+    dir = [0, 1];
+  if(ev.key == 'ArrowLeft')
+    dir = [-1, 0];
+  if(ev.key == 'ArrowRight')
+    dir = [1, 0];
+}
+
+play = function() {
+  // add the snake's head to the snake's body and
+  // remove the first element if the snake's body is too big
+  snake.push(head)
+  if(snake.length > snakeSize)
+    snake.shift();
+
+  // update the snake's head based on its direction
+  head = [head[0] + dir[0], head[1] + dir[1]];
+
+  // wrap the position around if we go past the edge of the screen
+  // The X position must be from 0 to W-1
+  // The Y position must be from 0 to H-1
+  if(head[0] < 0) 
+    head[0] = W-1;
+  if(head[0] >= W)
+    head[0] = 0;
+  if(head[1] < 0)
+    head[1] = H-1;
+  if(head[1] >= H)
+    head[1] = 0;
+ 
+  // periodically grow the snake's size
+  time = time - 1;
+  if(time == 0) {
+    time = GROWTIME;
+    snakeSize = snakeSize + 1;
+  }
+
+  // redraw the game and stop if we had a collision
+  if(draw() == false) {
+    // call the play function again at the next clock tick
+    window.setTimeout(play, TICK);
+  } else {
+    // we crashed, stop calling the play function
+    // we could draw some crash graphics here...
+  }
+}
+
+startGame = function() {
+  document.addEventListener('keydown', onKey);
+
+  var canvas = document.getElementById('game');
+
+  // note: ctx is a global variable
+  ctx = canvas.getContext('2d');
+
+  // start game play
+  play();
+}
+
+</script>
+<body onload=startGame()>
+<h1>Snakes</h1>
+<canvas id=game width=300 height=200>
+</body>
+</html>
