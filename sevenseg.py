@@ -8,15 +8,17 @@ def up_lines(n):
 def reverse(s):
     return f'\x1b[7m{s}\x1b[0m'
 
-def seven_seg(a,b,c,d,e,f,g):
+def seven_seg(a,b,c,d,e,f,g, REV=True):
     s = ' '
-    a = reverse(' ') if a else '.'
-    b = reverse(' ') if b else '.'
-    c = reverse(' ') if c else '.'
-    d = reverse(' ') if d else '.'
-    e = reverse(' ') if e else '.'
-    f = reverse(' ') if f else '.'
-    g = reverse(' ') if g else '.'
+    on = reverse(' ') if REV else '#'
+    off = '.'
+    a = on if a else off
+    b = on if b else off
+    c = on if c else off
+    d = on if d else off
+    e = on if e else off
+    f = on if f else off
+    g = on if g else off
     return [
         f"{s}{a}{a}{a}{a}{a}{s}",
         f"{f}{s}{s}{s}{s}{s}{b}",
@@ -29,8 +31,8 @@ def seven_seg(a,b,c,d,e,f,g):
         f"{s}{d}{d}{d}{d}{d}{s}",
     ]
 
-def seven_seg_decode(n):
-    if n in "0123456789":
+def seven_seg_decode(n, REV=True):
+    if isinstance(n, str) and n in "0123456789":
         n = int(n)
     a = n in [0, 2, 3, 5, 6, 7, 8, 9]
     b = n in [0, 1, 2, 3, 4, 7, 8, 9]
@@ -39,10 +41,10 @@ def seven_seg_decode(n):
     e = n in [0, 2, 6, 8]
     f = n in [0, 4, 5, 6, 8, 9]
     g = n in [2, 3, 4, 5, 6, 8, 9]
-    return seven_seg(a,b,c,d,e,f,g)
+    return seven_seg(a,b,c,d,e,f,g, REV=REV)
 
-def seven_seg_decodes(*ns):
-    segs = [seven_seg_decode(n) for n in ns]
+def seven_seg_decodes(*ns, REV=True):
+    segs = [seven_seg_decode(n, REV=REV) for n in ns]
     ls = ['  '.join(l) for l in zip(*segs)]
     return ls
 
@@ -51,16 +53,23 @@ def show(ls):
         print(l)
 
 def test():
-    #show(seven_seg_decode(5))
-    show(seven_seg_decodes(9,0,2,1,0))
+    #show(seven_seg_decodes(1,2,3))
+    show(seven_seg_decodes('9','0','2','1','0', REV=False))
+    show(seven_seg_decodes('9','0','2','1','0', REV=True))
 
 def count():
     for n in range(1000):
         if n:
             up_lines(9)
         ns = [digit for digit in f'{n:3d}']
-        show(seven_seg_decodes(*ns))
-        time.sleep(0.1)
+        show(seven_seg_decodes(*ns, REV=False))
+        up_lines(9)
+        time.sleep(0.05)
+        show(seven_seg_decodes(*ns, REV=True))
+        up_lines(9)
+        time.sleep(0.05)
+        show(seven_seg_decodes(*ns, REV=False))
+        time.sleep(0.05)
 
 if __name__ == '__main__':
     #test()
