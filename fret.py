@@ -61,7 +61,8 @@ def interval(name):
     if m:
         pref = m.group(1)
         degree = int(m.group(2))
-        norm = f"{pref.lower()}{degree % 8}"
+        norm_degree = ((degree - 1) % 7) + 1
+        norm = f"{pref.lower()}{norm_degree}"
         if norm in name1:
             return name1.index(norm)
         if norm in name2:
@@ -70,7 +71,6 @@ def interval(name):
 
 def is_noteset(cur, notes):
     return any(note % 12 == cur % 12 for note in notes)
-
 
 def genfretboard(tonic, notes, minfret, maxfret, tuning):
     for fret in range(maxfret, minfret-1, -1):
@@ -86,12 +86,15 @@ def genfretboard(tonic, notes, minfret, maxfret, tuning):
         string = note(string_name)
         print("-", end="");
         for fret in range(maxfret, minfret-1, -1):
-            x = is_noteset(string + fret, notes)
+            n = (string + fret) % 12
+            x = is_noteset(n, notes)
+            press = 'o'
+            #press = '*' if n == tonic else 'o'
             if fret == 0:
-                sym = 'o' if x else ' '
+                sym = press if x else ' '
                 print(f"|{sym}", end="")
             else:
-                sym = 'o' if x else '-'
+                sym = press if x else '-'
                 print(f"{sym}-|", end="")
         print(f" {idx+1}={string_name}")
 
