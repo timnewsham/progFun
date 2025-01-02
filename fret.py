@@ -19,6 +19,16 @@ Generate fretboard fingerings.
 ---|--|--|o-|--||  2=C
 ---|--|o-|--|--||  3=E
 -o-|--|--|o-|--||  4=A
+
+# C on open-D guitar
+./fret.py  -T "D A D F# A D" -t C p1 maj3 p5
+ 12       9     7     5     3          
+---|--|o-|--|--|--|--|o-|--|--|o-|--||  1=D
+---|--|o-|--|--|o-|--|--|--|o-|--|--||  2=A
+---|--|o-|--|--|--|--|o-|--|--|o-|--||  3=D
+---|--|o-|--|--|--|o-|--|--|--|--|o-||  4=F#
+---|--|o-|--|--|o-|--|--|--|o-|--|--||  5=A
+---|--|o-|--|--|--|--|o-|--|--|o-|--||  6=D
 """
 
 import argparse
@@ -90,7 +100,7 @@ def main():
         epilog="tonic note is specified as a note, flat or sharp\nintervals are specified as maj, min, aug, dim or p <num>")
     p.add_argument("-t", "--tonic", default="A")
     p.add_argument("-f", "--minfret", type=int, default=0)
-    p.add_argument("-F", "--maxfret", type=int, default=23)
+    p.add_argument("-F", "--maxfret", type=int, default=12)
     p.add_argument("-T", "--tuning", default="E A D G B E")
     p.add_argument("notes", nargs="*")
     opt = p.parse_args()
