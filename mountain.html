@@ -131,7 +131,8 @@ class Vec3 {
 }
 
 class Mountain {
-    constructor(n) {
+    constructor(n, wireframe, theta, phi) {
+		this.n = n;
 		this.w = 1<<n;
 		this.h = this.w;
 
@@ -139,9 +140,9 @@ class Mountain {
 		this.arr = [];
 		this.gen();
 
-		this.theta = 10;
-		this.phi = -55;
-		this.wireframe = false;
+		this.theta = theta;
+		this.phi = phi;
+		this.wireframe = wireframe;
 	}
 
 	gen_rec(n, x, y, d, randamp) {
@@ -362,7 +363,6 @@ class Mountain {
 }
 
 onload = function() {
-	var m = new Mountain(6);
 	const thetaSlider = document.querySelector("#theta");
 	thetaSlider.addEventListener("input", (event) => {
 		m.theta = event.target.value;
@@ -380,10 +380,13 @@ onload = function() {
 	});
 	const regen = document.querySelector("#regen");
 	regen.addEventListener("click", (event) => {
-		m = new Mountain(6);
+		m = new Mountain(m.n, m.wireframe, m.theta, m.phi);
 		m.plot();
 	});
 
+	const theta = thetaSlider.value;
+	const phi = phiSlider.value;
+	var m = new Mountain(6, false, theta, phi);
 	m.plot(); 
 }
 
@@ -392,8 +395,8 @@ onload = function() {
 </head>
 <body>
 <div>
-  <input type="range" id="theta" name="theta" min="-90" max="90" /><label for="theta">theta</label><br/>
-  <input type="range" id="phi" name="phi" min="-45" max="45" /><label for="phi">phi</label><br/>
+  <input type="range" id="theta" name="theta" min="-90" max="90" value="10"/><label for="theta">theta</label><br/>
+  <input type="range" id="phi" name="phi" min="-45" max="45" value="-30"/><label for="phi">phi</label><br/>
   <input type="checkbox" id="wireframe" name="wireframe" /><label for="wireframe">wireframe</label><br/>
   <button name="regen" id="regen">regen</button><br/>
 </div>
