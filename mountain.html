@@ -70,9 +70,9 @@ class Mat3 {
 
 	transpose(m) {
 		return new Mat3(
-			this.row0.i, this.row0.i, this.row0.i,
-			this.row1.j, this.row1.j, this.row1.j,
-			this.row2.k, this.row2.k, this.row2.k
+			this.row0.i, this.row1.i, this.row2.i,
+			this.row0.j, this.row1.j, this.row2.j,
+			this.row0.k, this.row1.k, this.row2.k
 		);
 	}
 
@@ -138,6 +138,10 @@ class Mountain {
 		// height map.
 		this.arr = [];
 		this.gen();
+
+		this.theta = 10;
+		this.phi = -55;
+		this.wireframe = false;
 	}
 
 	gen_rec(n, x, y, d, randamp) {
@@ -247,23 +251,19 @@ class Mountain {
 		}
 	}
 
-	// TODO: rework the rendering logic.
-	// start with normalized coordinates centered at 0,0 for the x,y grid.
-	// rotate mountain (x,y) and then z.
-	// assign shading from sun.
-	// project mountain to screen coordinates and draw
 	plot() {
-		// TODO: make this a lot more generic...
-		var canvas = document.getElementById("drawme");
+    	const canvas = document.querySelector("#mountain");
 		const W = canvas.width;
 		const H = canvas.height;
 		var ctx = canvas.getContext('2d');
 
+		ctx.fillStyle = "white";
+		ctx.fillRect(0, 0, W-1, H-1);
 		ctx.strokeRect(0, 0, W-1, H-1);
 
-		// TODO: distance projection...
-		const theta = 10 * Math.PI / 180.0;  // rotation on Y axis.
-		const phi = -55 * Math.PI / 180.0;   // rotation on X axis.
+		// tilt the model for better viewing angle.
+		const theta = this.theta * Math.PI / 180.0;  // rotation on Y axis.
+		const phi = this.phi * Math.PI / 180.0;   // rotation on X axis.
 		const mtheta = new Mat3(
 			Math.cos(theta),  0,  Math.sin(theta),
 			0,                1,  0,
@@ -274,22 +274,15 @@ class Mountain {
 			0, Math.cos(phi),  Math.sin(phi),
 			0, -Math.sin(phi), Math.cos(phi)
 		)
-		const mrot = mphi.mul(mtheta); // TODO: fixme. this is broken
-		//console.log("mtheta", mtheta);
-		//console.log("mphi", mphi);
-		//console.log("mrot", mrot);
+		const mrot = mphi.mul(mtheta);
 
 		// projection to screen coordinates.
 		// with x going sideways, y going down diagonally, and z going upwards.
 		const mount = this;
-		const dist = 1;
+		const dist = 3;
 		const proj = function(vec) {
-			var v = vec;
-			v = mtheta.mulvec(v);
-			v = mphi.mulvec(v);
-			//v = mrot.mulvec(vec);
-			//const dscale =  dist / (dist - v.k); // TODO: this isnt quite right. fixme.
-			const dscale = 1.0;
+			const v = mrot.mulvec(vec);
+			const dscale = dist / (dist - v.k);
 			const res = new Vec3(
 				(W * (0.5 + 0.8 * v.i * dscale)),
 				(H * (0.6 - 0.8 * v.j * dscale)),
@@ -358,7 +351,7 @@ class Mountain {
 
 		for(var y = 0; y < this.w; y++) {
 			for(var x = 0; x < this.w; x++) {
-				if(useWire) {
+				if(this.wireframe) {
 					plotWire(x, y);
 				} else {
 					plotTriangle(x, y);
@@ -368,15 +361,42 @@ class Mountain {
 	}
 }
 
-const useWire = false;
-//const useWire = true;
+onload = function() {
+	var m = new Mountain(6);
+	const thetaSlider = document.querySelector("#theta");
+	thetaSlider.addEventListener("input", (event) => {
+		m.theta = event.target.value;
+		m.plot();
+	});
+	const phiSlider = document.querySelector("#phi");
+	phiSlider.addEventListener("input", (event) => {
+		m.phi = event.target.value;
+		m.plot();
+	});
+	const wireframe = document.querySelector("#wireframe");
+	wireframe.addEventListener("change", (event) => {
+		m.wireframe = wireframe.checked;
+		m.plot();
+	});
+	const regen = document.querySelector("#regen");
+	regen.addEventListener("click", (event) => {
+		m = new Mountain(6);
+		m.plot();
+	});
 
-m = new Mountain(6);
-onload = function() { m.plot(); }
+	m.plot(); 
+}
+
+
 </script>
 </head>
 <body>
-<h1>woo</h1>
-<canvas id="drawme" width=1000 height=500></canvas>
+<div>
+  <input type="range" id="theta" name="theta" min="-90" max="90" /><label for="theta">theta</label><br/>
+  <input type="range" id="phi" name="phi" min="-45" max="45" /><label for="phi">phi</label><br/>
+  <input type="checkbox" id="wireframe" name="wireframe" /><label for="wireframe">wireframe</label><br/>
+  <button name="regen" id="regen">regen</button><br/>
+</div>
+<canvas id="mountain" width=1000 height=500></canvas>
 </body>
 </html>
