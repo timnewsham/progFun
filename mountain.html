@@ -1,0 +1,309 @@
+<html>
+<head>
+<script>
+
+avg = function() {
+	var sum = 0;
+	for (const arg of arguments) {
+		sum += arg;
+	}
+	return sum / arguments.length;
+}
+
+line = function(ctx, x0, y0, x1, y1) {
+	//console.log("line", x0, y0, x1, y1);
+	ctx.beginPath();
+	ctx.moveTo(x0, y0);
+	ctx.lineTo(x1, y1);
+	ctx.stroke();
+}
+
+triangle = function(ctx, color, x0, y0, x1, y1, x2, y2) {
+	ctx.fillStyle = color;
+	ctx.beginPath();
+	ctx.moveTo(x0, y0);
+	ctx.lineTo(x1, y1);
+	ctx.lineTo(x2, y2);
+	ctx.fill();
+}
+
+hexpair = function(val) {
+	return Number(Math.floor(val * 255.99)).toString(16).padStart(2, '0');
+}
+
+color = function(v) {
+	return '#' + hexpair(v.i) + hexpair(v.j) + hexpair(v.k);
+}
+
+rand = function(amp) {
+	return amp * (Math.random() - 0.5);
+}
+
+
+class Vec3 {
+	constructor(i,j,k) {
+		this.i = i;
+		this.j = j;
+		this.k = k;
+	}
+
+	add(x) {
+		return new Vec3(this.i + x.i, this.j + x.j, this.k + x.k);
+	}
+
+	sub(x) {
+		return this.add(x.mul(-1));
+	}
+
+	mul(s) {
+		return new Vec3(s*this.i, s*this.j, s*this.k);
+	}
+
+	mag() {
+		return Math.sqrt(this.i*this.i + this.j*this.j + this.k*this.k);
+	}
+
+	cross(x) {
+		return new Vec3(
+			this.j * x.k - this.k * x.j,
+			this.k * x.i - this.i * x.k,
+			this.i * x.j - this.j * x.i,
+		);
+	}
+
+	dot(x) {
+		return this.i*x.i + this.j*x.j + this.k*x.k;
+	}
+
+	norm() {
+		return this.mul(1.0 / this.mag());
+	}
+}
+
+class Mountain {
+    constructor(n) {
+		this.w = 1<<n;
+		this.h = this.w;
+
+		// height map.
+		this.arr = [];
+		this.gen();
+	}
+
+	gen_rec(n, x, y, d, randamp) {
+		if (d < 1) {
+			return;
+		}
+		//console.log("gen_rec", n, "at", x,y, "dist", d);
+		const d2 = 2 * d;
+
+		/*
+		 *      d  d2
+		 *   A--1--B
+		 *   |  |  |
+		 *   |  |  |
+		 *   2--5--3
+		 *   |  |  |
+		 *   |  |  |
+		 *   C--4--D
+		 */
+		const A = this.get(x, y);
+		const B = this.get(x+d2, y);
+		const C = this.get(x, y+d2);
+		const D = this.get(x+d2, y+d2);
+
+		// 1. generate midpoint of (x,y) and (x+d2,y).
+		//console.log("figure 1");
+		var val1 = this.get(x+d, y);
+		if (val3 === undefined) {
+			val1 = rand(randamp)+ avg(A, B);
+			this.set(x+d, y, val1);
+		} else {
+			console.log("val1 already set!@#?");
+		}
+
+		// 2. generate midpoint of (x,y) and (x,y+d2).
+		//console.log("figure 2");
+		var val2 = this.get(x, y+d);
+		if (val2 == undefined) {
+			val2 = rand(randamp) + avg(A, C);
+			this.set(x, y+d, val2);
+		} else {
+			//console.log("val2 already set!@#?");
+		}
+
+		// 3. generate midpoint of (x+d2,y) and (x+d2,y+d).
+		//console.log("figure 3");
+		var val3 = this.get(x+d2, y+d);
+		if (val3 === undefined) {
+			val3 = rand(randamp) + avg(B, D);
+			this.set(x+d2, y+d, val3);
+		} else {
+			//console.log("val3 already set!@#?");
+		}
+
+		// 4. generate midpoint of (x,y+d2) and (x+d,y+d2).
+		//console.log("figure 4");
+		var val4 = this.get(x+d, y+d2);
+		if (val4 === undefined) {
+			val4 = rand(randamp) + avg(C, D);
+			this.set(x+d, y+d2, val4);
+		} else {
+			//console.log("val4 already set!@#?");
+		}
+
+		// 5. generate midpoint at (x+d,y+2) between points 1,2,3, and 4.
+		//console.log("figure 5");
+		var val5 = this.get(x+d, y+d);
+		if(val5 == undefined) {
+			val5 = rand(randamp) + avg(A, B, C, D);
+			this.set(x+d, y+d, val5);
+		} else {
+			console.log("val5 already set!@#?", x, y, d);
+		}
+
+		this.gen_rec(n+1, x, y, d/2, randamp/2);
+		this.gen_rec(n+1, x+d, y, d/2, randamp/2);
+		this.gen_rec(n+1, x, y+d, d/2, randamp/2);
+		this.gen_rec(n+1, x+d, y+d, d/2, randamp/2);
+	};
+
+	// recursively fill in midpoints until all heights are fileld
+	gen() {
+		const d = this.w;
+		this.set(0,0, 0);
+		this.set(0+d,0, 0);
+		this.set(0,0+d, 0);
+		this.set(0+d, 0+d, 0);
+		//console.log("generate with d", this.w/2);
+		this.gen_rec(0, 0,0, d/2, 1.0);
+
+	}
+	set(x,y,val) {
+		const W = this.w + 1;
+		//console.log("set", x, y, "<-", val);
+		this.arr[x*W + y] = val;
+	}
+	get(x,y) {
+		const W = this.w + 1;
+		//console.log("get", x, y, "->", this.arr[x*W + y]);
+		return this.arr[x*W + y];
+	}
+	show() {
+		for(var x = 0; x < this.w+1; x++) {
+			for(var y = 0; y < this.h+1; y++) {
+				console.log("elem", x, y, this.get(x, y));
+			}
+		}
+	}
+
+	// TODO: rework the rendering logic.
+	// start with normalized coordinates centered at 0,0 for the x,y grid.
+	// rotate mountain (x,y) and then z.
+	// assign shading from sun.
+	// project mountain to screen coordinates and draw
+	plot() {
+		// TODO: make this a lot more generic...
+		var canvas = document.getElementById("drawme");
+		const W = canvas.width;
+		const H = canvas.height;
+		var ctx = canvas.getContext('2d');
+
+		ctx.strokeRect(0, 0, W-1, H-1);
+
+		// TODO: distance projection...
+		const theta = -5 * Math.PI / 180.0;
+		const dx = new Vec3(Math.cos(theta), Math.sin(theta), 0);
+		const dy = new Vec3(-Math.sin(theta), Math.cos(theta), 0);
+		const zfact = 0.8 * this.w;
+		const dz = new Vec3(0,-zfact,0);
+
+		// projection to screen coordinates.
+		// with x going sideways, y going down diagonally, and z going upwards.
+		const mount = this;
+		const offx = 0.015 * W;   		// about 10 pixels at 640x400.
+		const offy = 0.30 * H;			// 150 pixels at 640x400.
+		const sx = 0.9 * W / this.w; 	// about 400 across at 640x400.
+		const sy = 0.6 * H / mount.h;   // about 200 pixels down at 640x400.
+		const proj = function(vec) {
+			const v = dx.mul(vec.i).add(dy.mul(vec.j)).add(dz.mul(vec.k));
+			return new Vec3(offx + sx * v.i,
+				offy + sy * v.j,
+				0.0
+			);
+		}
+		const get = function(x, y) {
+			var z = mount.get(x, y);
+			if (z < 0) {
+				z = 0;
+			}
+			return new Vec3(x, y, z);
+		}
+		const projxy = function(x, y) {
+			return proj(get(x,y));
+		}
+
+		const plotWire = function(x, y) {
+			const v00 = projxy(x, y);
+			const v10 = projxy(x+1, y);
+			const v01 = projxy(x, y+1);
+			line(ctx, v00.i, v00.j, v10.i, v10.j);
+			line(ctx, v00.i, v00.j, v01.i, v01.j);
+		}
+
+		const sun = new Vec3(-0.5, 0.5, 1).norm();
+		const green = new Vec3(0.2, 1.0, 0.0);
+		const blue = new Vec3(0.1, 0.6, 1.0);
+		const tri = function(a, b, c) {
+			const bc = c.sub(b);
+			const ba = a.sub(b);
+			var col;
+			if (a.k > 0 || b.k > 0 || c.k > 0) {
+				const norm = bc.cross(ba).norm();
+				const lighting = norm.dot(sun);
+				const bright = Math.pow(Math.abs(lighting), 3.0);
+				col = color(green.mul(bright));
+			} else {
+				col = color(blue);
+			}
+			//console.log("norm", norm, "bright", bright, col);
+
+			const pa = proj(a);
+			const pb = proj(b);
+			const pc = proj(c);
+			triangle(ctx, col, pa.i, pa.j, pb.i, pb.j, pc.i, pc.j);
+		}
+
+		const plotTriangle = function(x, y) {
+			const v00 = get(x, y);
+			const v10 = get(x+1, y);
+			const v01 = get(x, y+1);
+			const v11 = get(x+1, y+1);
+			tri(v00, v01, v10);
+			tri(v10, v01, v11);
+		}
+
+		for(var y = 0; y < this.w; y++) {
+			for(var x = 0; x < this.w; x++) {
+				if(useWire) {
+					plotWire(x, y);
+				} else {
+					plotTriangle(x, y);
+				}
+			}
+		}
+	}
+}
+
+const useWire = false;
+//const useWire = true;
+
+m = new Mountain(6);
+onload = function() { m.plot(); }
+</script>
+</head>
+<body>
+<h1>woo</h1>
+<canvas id="drawme" width=1000 height=500></canvas>
+</body>
+</html>
