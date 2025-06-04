@@ -6,3 +6,4 @@ Tue Jun  3 10:07:36 HST 2025
 * demoTri.html - rasterizing a single triangle in 2D.
 * demoTris.html - rasterizing a collection of dancing triangles in 2D.
 * demoCube.html - rasterize a 3D model of a cube that is converted to triangles.
+* model/cube.js - a class for loading models, and a model of a cube.
