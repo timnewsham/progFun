@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+</style>
+<script src="math.js"></script>
+<script>
+function rightSideOfLine(a, b, p) {
+	const ABperp = b.sub(a).perp();
+	const AP = p.sub(a);
+	const d = ABperp.dot(AP);
+	return d > 0;
+}
+
+class Tri {
+	constructor(a, b, c) {
+		this.a = a;
+		this.b = b;
+		this.c = c;
+	}
+
+	pointIn(p) {
+		const ABr = rightSideOfLine(this.a, this.b, p);
+		const BCr = rightSideOfLine(this.b, this.c, p);
+		const CAr = rightSideOfLine(this.c, this.a, p);
+		return ABr == BCr && BCr == CAr;
+	}
+}
+
+function forEachPixel(W, H, f) {
+	for(var y = 0; y < H; y++) {
+		for(var x = 0; x < W; x++) {
+			const p = new Vec2(x, y);
+			f(p);
+		}
+	}
+}
+
+function draw(canvas) {
+    const W = canvas.width;
+    const H = canvas.height;
+	const ctx = canvas.getContext('2d');
+
+	const tri = new Tri(
+		new Vec2(0.2 * W, 0.2 * H),
+		new Vec2(0.7 * W, 0.4 * H),
+		new Vec2(0.4 * W, 0.8 * H),
+	);
+
+	// render each pixel.
+	forEachPixel(W, H, p => {
+		var color = "black";
+		if (tri.pointIn(p)) {
+			color = "blue";
+		} else {
+			//color = rgb(p.i/W, p.j/H, 0);
+		}
+		ctx.fillStyle = color;
+		ctx.fillRect(p.i, p.j, 1, 1);
+	});
+}
+
+onload = function() {
+    const canvas = document.querySelector("#draw");
+	draw(canvas);
+}
+</script>
+</head>
+<body>
+<canvas id="draw" width=500 height=500></canvas>
+</body>
+</html>

@@ -110,12 +110,17 @@ class Vec2 extends Vec {
 
 	// dot computes the dot product of this vector and x.
 	dot(x) {
-		return this.i*x.i + this.j*x.j + this.k*x.k;
+		return this.i*x.i + this.j*x.j;
 	}
 
 	// cross computes the cross product of this vector and x.
 	cross(x) {
 		return this.i * x.j - x.i * this.j;
+	}
+
+	// perp returns a vector perpendicular to this one.
+	perp() {
+		return new Vec2(this.j, -this.i);
 	}
 }
 
