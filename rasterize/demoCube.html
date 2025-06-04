@@ -93,9 +93,6 @@ class Tri {
 		if(this.visible) {
 			this.precompute_bounds();
 			this.precompute_sides();
-			this.depth = this.bmin.k;
-		} else {
-			this.depth = -1;
 		}
 	}
 
@@ -118,7 +115,8 @@ class Tri {
 		const ABright = this.ABperp.dot(AP) > 0; // p is on right side of AB if ABperp dot AP is greater than zero.
 		const BCright = this.BCperp.dot(BP) > 0;
 		const CAright = this.CAperp.dot(CP) > 0;
-		return ABright == BCright && BCright == CAright; // p is on the same side of all sides.
+		//return ABright == BCright && BCright == CAright; // p is on the same side of all sides.
+		return !ABright && !BCright && !CAright; // p is on the left side of all sides, which ignores back facing sides.
 	}
 }
 
@@ -128,9 +126,9 @@ class Data {
 		this.tris = [];
 		//m.fs = m.fs.slice(0,1);
 		m.fs.forEach(face => {
-			const col = new Vec3(Math.random(), Math.random(), Math.random()).rgb();
+			//const col = new Vec3(Math.random(), Math.random(), Math.random()).rgb();
 			face.forEachTriangle((a,b,c) => {
-				//const col = new Vec3(Math.random(), Math.random(), Math.random()).rgb();
+				const col = new Vec3(Math.random(), Math.random(), Math.random()).rgb();
 				const tri = new Tri(a,b,c, col);
 				this.tris.push(tri);
 			});
@@ -154,17 +152,9 @@ class Data {
 		const ctx = canvas.getContext('2d');
     	const W = canvas.width;
     	const H = canvas.height;
-		const sortedTris = this.tris.slice().sort((a,b) => a.depth - b.depth);
-
-		//sortedTris.forEach(tri => console.log("draw tri", tri, tri.a.v.scrpos, tri.b.v.scrpos, tri.c.v.scrpos));
-		//sortedTris.forEach(tri => console.log("draw tri", tri, tri.depth));
-
-		// XXX this isnt quite right yet, we need to interp the z coord
-		// of each face we intersect and pick the closest one for each pixel.
-		// we cant rely on the tri.depth field, which we should discard now...
 		forEachPixel(W, H, p => {
 			var color = "black";
-			for(const tri of sortedTris) {
+			for(const tri of this.tris) {
 				if(tri.visible && tri.pointIn(p)) {
 					color = tri.color;
 					break;
