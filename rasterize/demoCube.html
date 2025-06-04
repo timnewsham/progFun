@@ -126,9 +126,8 @@ class Data {
 		this.tris = [];
 		//m.fs = m.fs.slice(0,1);
 		m.fs.forEach(face => {
-			//const col = new Vec3(Math.random(), Math.random(), Math.random()).rgb();
 			face.forEachTriangle((a,b,c) => {
-				const col = new Vec3(Math.random(), Math.random(), Math.random()).rgb();
+				const col = new Vec3(Math.random(), 0.8, 0.8).hsl();
 				const tri = new Tri(a,b,c, col);
 				this.tris.push(tri);
 			});

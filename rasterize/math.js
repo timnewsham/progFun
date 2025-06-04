@@ -33,8 +33,8 @@ function rgb(r, g, b) {
 // hsla returns a color string from HSLA components.
 function hsla(h, s, l, a) {
 	const H = Math.floor(360 * clampUnit(h));
-	const S = Math.floor(100 * clampUnit(h));
-	const L = Math.floor(100 * clampUnit(h));
+	const S = Math.floor(100 * clampUnit(s));
+	const L = Math.floor(100 * clampUnit(l));
 	const A = Math.floor(100 * clampUnit(a));
 	return `hsl(${H} ${S}% ${L}% / ${A}%)`;
 }
