@@ -61,6 +61,11 @@ function randrange(min, max) {
 	return lerp(Math.random(), min, max);
 }
 
+// randrangei returns a random integer value in the range [min..max].
+function randrangei(min, max) {
+	return Math.floor(randrange(min, max));
+}
+
 // Vec holds generic vector methods.
 class Vec {
 	// implement:
@@ -68,6 +73,11 @@ class Vec {
 	// scale(s)
 	// mag2()
 	// dot(x)
+
+	// clone makes a copy of a vector.
+	clone() {
+		return this.scale(1);
+	}
 
 	// sub subtracts x from this vector to form a new vector.
 	sub(x) {

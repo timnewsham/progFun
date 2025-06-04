@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+</style>
+<script src="math.js"></script>
+<script>
+class VelPoint {
+	constructor(p, v) {
+		this.p = p;
+		this.v = v;
+	}
+
+	// update does a position update based on velocity and dt,
+	// bouncing off boundaries (0,0) and (W,H).
+	update(dt, W, H) {
+		const p = this.v.scale(dt).add(this.p);
+		if(p.i < 0 || p.i >= W) {
+			this.v.i *= -1;
+		} else {
+			this.p.i = p.i;
+		}
+
+		if(p.j < 0 || p.j >= H) {
+			this.v.j *= -1;
+		} else {
+			this.p.j = p.j;
+		}
+	}
+}
+
+class Tri {
+	constructor(a, b, c, col) {
+		this.a = a;
+		this.b = b;
+		this.c = c;
+		this.color = col;
+
+		this.update_sides();
+		this.update_bounds();
+	}
+
+	update_sides() {
+		// precomputed perpendiculars to each side.
+		this.ABperp = this.b.p.sub(this.a.p).perp();
+		this.BCperp = this.c.p.sub(this.b.p).perp();
+		this.CAperp = this.a.p.sub(this.c.p).perp();
+	}
+
+	update_bounds() {
+		this.bmin = new Vec2(
+			Math.min(this.a.p.i, this.b.p.i, this.c.p.i),
+			Math.min(this.a.p.j, this.b.p.j, this.c.p.j),
+		);
+		this.bmax = new Vec2(
+			Math.max(this.a.p.i, this.b.p.i, this.c.p.i),
+			Math.max(this.a.p.j, this.b.p.j, this.c.p.j),
+		);
+	}
+
+	update(dt, W, H) {
+		this.a.update(dt, W, H);
+		this.b.update(dt, W, H);
+		this.c.update(dt, W, H);
+		this.update_bounds();
+		this.update_sides();
+	}
+
+	pointInBounds(p) {
+		return (this.bmin.i <= p.i && p.i <= this.bmax.i &&
+				this.bmin.j <= p.j && p.j <= this.bmax.j);
+	}
+
+	pointIn(p) {
+		if(!this.pointInBounds(p)) { return false; }
+
+		const AP = p.sub(this.a.p);
+		const BP = p.sub(this.b.p);
+		const CP = p.sub(this.c.p);
+		const ABright = this.ABperp.dot(AP) > 0; // p is on right side of AB if ABperp dot AP is greater than zero.
+		const BCright = this.BCperp.dot(BP) > 0;
+		const CAright = this.CAperp.dot(CP) > 0;
+		return ABright == BCright && BCright == CAright; // p is on the same side of all sides.
+	}
+}
+
+function forEachPixel(W, H, f) {
+	for(var y = 0; y < H; y++) {
+		for(var x = 0; x < W; x++) {
+			const p = new Vec2(x, y);
+			f(p);
+		}
+	}
+}
+
+class Model {
+	constructor(canvas, N) {
+		this.canvas = canvas;
+		this.ctx = canvas.getContext('2d');
+    	const W = this.canvas.width;
+    	const H = this.canvas.height;
+
+		const mid = new Vec2(W/2, H/2);
+		const randVec2 = function() {
+			return new Vec2(randrange(0, W), randrange(0, H));
+		}
+
+		this.tris = [];
+		for(var n = 0; n < N; n++) {
+			const pa = randVec2().sub(mid).scale(0.3).add(mid);
+			const pb = randVec2().sub(mid).scale(0.3).add(mid);
+			const pc = randVec2().sub(mid).scale(0.3).add(mid);
+			const velocity = randVec2().sub(mid).scale(0.5);
+			const color = new Vec3(Math.random(), Math.random(), Math.random()).rgb();
+			const tri = new Tri(
+				new VelPoint(pa, velocity.clone()),
+				new VelPoint(pb, velocity.clone()),
+				new VelPoint(pc, velocity.clone()),
+				color,
+			);
+			this.tris.push(tri);
+		}
+	}
+
+	update(dt) {
+    	const W = this.canvas.width;
+    	const H = this.canvas.height;
+		for(const tri of this.tris) {
+			tri.update(dt, W, H);
+		}
+	}
+
+	draw() {
+    	const W = this.canvas.width;
+    	const H = this.canvas.height;
+
+		// render each pixel.
+		forEachPixel(W, H, p => {
+			var color = "black";
+			for(const tri of this.tris) {
+				if(tri.pointIn(p)) {
+					color = tri.color;
+					break;
+				}
+			}
+			this.ctx.fillStyle = color;
+			this.ctx.fillRect(p.i, p.j, 1, 1);
+		});
+	}
+}
+
+function animate(model) {
+	model.draw();
+	model.update(0.1);
+	requestAnimationFrame(() => animate(model));
+}
+
+onload = function() {
+    const canvas = document.querySelector("#draw");
+	const model = new Model(canvas, 30);
+	animate(model);
+}
+</script>
+</head>
+<body>
+<canvas id="draw" width=500 height=500></canvas>
+</body>
+</html>
