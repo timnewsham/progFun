@@ -17,7 +17,7 @@ class Face {
 	}
 
 	// forEachTriangle decomposes polygons into triangle fans,
-	// calling f(a,b,c) for each triangle a,b,c.
+	// calling f(a,b,c) for each triangle with vertices a,b,c.
 	forEachTriangle(f) {
 		f(this.vs[0], this.vs[1], this.vs[2]);
 		for(var n = 3; n < this.vs.length; n++) {
@@ -27,7 +27,8 @@ class Face {
 }
 
 class Model {
-	constructor() {
+	constructor(name) {
+		this.name = name;
 		this.vs = [];
 		this.vns = [];
 		this.vts = [];
@@ -74,7 +75,7 @@ class Model {
 // cube model from
 // https://www.youtube.com/watch?v=yyJ-hdISgnw&t=536s
 function cube() {
-	var m = new Model();
+	var m = new Model("cube");
 
 	// vertices.
 	m.v(1, 1, -1);

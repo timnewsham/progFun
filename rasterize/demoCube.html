@@ -129,16 +129,20 @@ class Tri {
 
 class Data {
 	constructor(m) {
-		this.points = m.vs;
+		this.points = [];
 		this.tris = [];
-		//m.fs = m.fs.slice(0,1);
-		m.fs.forEach(face => {
-			face.forEachTriangle((a,b,c) => {
-				const col = new Vec3(Math.random(), 0.8, 0.8);
-				const tri = new Tri(a,b,c, col);
-				this.tris.push(tri);
+
+		// load all models into this.points and this.tris.
+		for(const model of arguments) {
+			this.points.push(...model.vs);
+			model.fs.forEach(face => {
+				face.forEachTriangle((a,b,c) => {
+					const col = new Vec3(Math.random(), 0.8, 0.8);
+					const tri = new Tri(a,b,c, col);
+					this.tris.push(tri);
+				});
 			});
-		});
+		}
 	}
 
 	proj(tcam, tscr) {
@@ -180,40 +184,46 @@ class Data {
 	}
 }
 
-function draw(canvas, camera, data) {
-    const W = canvas.width;
-    const H = canvas.height;
-	const tcam = camera.transform();
-	const tscr = screen_transform(W);
-	data.proj(tcam, tscr);
-	data.draw(canvas);
-}
+class UI {
+	constructor(canvas, data) {
+		this.canvas = canvas;
+		this.data = data;
+		this.camera = new Camera();
+		this.user = new User();
+	}
 
-function animate(canvas, camera, user, data) {
-	draw(canvas, camera, data);
-	camera.yaw += deg(2);
-	camera.roll += deg(0.1);
-	camera.pitch += deg(0.2);
+	draw() {
+		const W = this.canvas.width;
+		const H = this.canvas.height;
+		const tcam = this.camera.transform();
+		const tscr = screen_transform(W);
+		this.data.proj(tcam, tscr);
+		this.data.draw(this.canvas);
+	}
 
-	// zoome in/out.
-	if (user.key == "KeyI") { camera.depth -= 0.05; }
-	if (user.key == "KeyO") { camera.depth += 0.05; }
+	animate() {
+		this.draw();
 
-	requestAnimationFrame(() => animate(canvas, camera, user, data));
+		this.camera.yaw += deg(2);
+		this.camera.roll += deg(0.1);
+		this.camera.pitch += deg(0.2);
+
+		const speed = 0.05;
+		if (this.user.key == "KeyI") { this.camera.depth -= speed; }
+		if (this.user.key == "KeyO") { this.camera.depth += speed; }
+
+		requestAnimationFrame(() => this.animate());
+	}
 }
 
 onload = function() {
     const canvas = document.querySelector("#draw");
-	const m = cube();
-	const data = new Data(m);
-	var camera = new Camera();
-	var user = new User();
-	animate(canvas, camera, user, data);
+	const ui = new UI(canvas, new Data(cube()));
+	ui.animate();
 }
-
 </script>
 </head>
 <body>
-<canvas id="draw" width=500 height=500></canvas>
+<canvas id="draw" width=400 height=400></canvas>
 </body>
 </html>
