@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+</style>
+<script src="math.js"></script>
+<script src="model/cube.js"></script>
+<script>
+var glob = null;
+
+function forEachPixel(W, H, f) {
+    for(var y = 0; y < H; y++) {
+        for(var x = 0; x < W; x++) {
+            const p = new Vec2(x, y);
+            f(p);
+        }
+    }
+}
+
+class User {
+	constructor() {
+		this.key = "";
+		addEventListener("keydown", (ev) => { this.key = ev.code; });
+		addEventListener("keyup", (ev) => { this.key = "" });
+	}
+}
+
+class Camera {
+	constructor() {
+		this.depth = 3;
+		this.yaw = 0;
+		this.roll = 0;
+		this.pitch = 0;
+	}
+
+	transform() {
+		return transforms(
+			Mat4.yaw(this.yaw),
+			Mat4.roll(this.roll),
+			Mat4.pitch(this.pitch),
+			Mat4.translate(new Vec3(0, 0, this.depth)),
+			Mat4.persp(),
+		);
+	}
+}
+
+function screen_transform(W) {
+	return transforms(
+		Mat4.scales(new Vec3(W/2, -W/2, 1.0)),	// positive Y is up, scale X [-1,1] to [-W/2, W/2].
+		Mat4.translate(new Vec3(W/2, W/2, 5)),	// translate X to [0, W].
+	);
+}
+
+class Tri {
+	constructor(a, b, c, col) {
+		this.a = a;
+		this.b = b;
+		this.c = c;
+		this.color = col;
+	}
+
+	// computes perpendiculars to each side based on screen pos.
+	precompute_sides() {
+		// precomputed perpendiculars to each side.
+		const a = this.a.v.scrpos.vec2();
+		const b = this.b.v.scrpos.vec2();
+		const c = this.c.v.scrpos.vec2();
+		this.ABperp = b.sub(a).perp();
+		this.BCperp = c.sub(b).perp();
+		this.CAperp = a.sub(c).perp();
+	}
+
+	// computes bounding box of screen pos.
+	precompute_bounds() {
+		const a = this.a.v.scrpos;
+		const b = this.b.v.scrpos;
+		const c = this.c.v.scrpos;
+		this.bmin = new Vec3(
+			Math.min(a.i, b.i, c.i),
+			Math.min(a.j, b.j, c.j),
+			Math.min(a.k, b.k, c.k),
+		);
+		this.bmax = new Vec3(
+			Math.max(a.i, b.i, c.i),
+			Math.max(a.j, b.j, c.j),
+			Math.max(a.k, b.k, c.k),
+		);
+	}
+
+	// precompute sets pre-computed sides and bounds.
+	precompute(dt, W, H) {
+		this.visible = this.a.v.visible && this.b.v.visible && this.c.v.visible;
+		if(this.visible) {
+			this.precompute_bounds();
+			this.precompute_sides();
+			this.depth = this.bmin.k;
+		} else {
+			this.depth = -1;
+		}
+	}
+
+	// pointInBounds is true if p is in the triangle's screen position's bounding box.
+	pointInBounds(p) {
+		return (this.bmin.i <= p.i && p.i <= this.bmax.i &&
+				this.bmin.j <= p.j && p.j <= this.bmax.j);
+	}
+
+	// pointIn is true if p is in the triangle's screen position.
+	pointIn(p) {
+		if(!this.pointInBounds(p)) { return false; }
+
+		const a = this.a.v.scrpos;
+		const b = this.b.v.scrpos;
+		const c = this.c.v.scrpos;
+		const AP = p.sub(a);
+		const BP = p.sub(b);
+		const CP = p.sub(c);
+		const ABright = this.ABperp.dot(AP) > 0; // p is on right side of AB if ABperp dot AP is greater than zero.
+		const BCright = this.BCperp.dot(BP) > 0;
+		const CAright = this.CAperp.dot(CP) > 0;
+		return ABright == BCright && BCright == CAright; // p is on the same side of all sides.
+	}
+}
+
+class Data {
+	constructor(m) {
+		this.points = m.vs;
+		this.tris = [];
+		//m.fs = m.fs.slice(0,1);
+		m.fs.forEach(face => {
+			const col = new Vec3(Math.random(), Math.random(), Math.random()).rgb();
+			face.forEachTriangle((a,b,c) => {
+				//const col = new Vec3(Math.random(), Math.random(), Math.random()).rgb();
+				const tri = new Tri(a,b,c, col);
+				this.tris.push(tri);
+			});
+		});
+	}
+
+	proj(tcam, tscr) {
+		this.points.forEach(p => {
+			const campos = tcam.mulvec(p.vec4());
+			p.visible = campos.w > 0.5;
+			if(p.visible) {
+				p.projpos = campos.hvec4();
+				p.scrpos = tscr.mulvec(p.projpos);
+			}
+		});
+
+		this.tris.forEach(tri => tri.precompute());
+	}
+
+	draw(canvas) {
+		const ctx = canvas.getContext('2d');
+    	const W = canvas.width;
+    	const H = canvas.height;
+		const sortedTris = this.tris.slice().sort((a,b) => a.depth - b.depth);
+
+		//sortedTris.forEach(tri => console.log("draw tri", tri, tri.a.v.scrpos, tri.b.v.scrpos, tri.c.v.scrpos));
+		//sortedTris.forEach(tri => console.log("draw tri", tri, tri.depth));
+
+		// XXX this isnt quite right yet, we need to interp the z coord
+		// of each face we intersect and pick the closest one for each pixel.
+		// we cant rely on the tri.depth field, which we should discard now...
+		forEachPixel(W, H, p => {
+			var color = "black";
+			for(const tri of sortedTris) {
+				if(tri.visible && tri.pointIn(p)) {
+					color = tri.color;
+					break;
+				}
+			}
+			ctx.fillStyle = color;
+			ctx.fillRect(p.i, p.j, 1, 1);
+		});
+	}
+}
+
+function draw(canvas, camera, data) {
+    const W = canvas.width;
+    const H = canvas.height;
+	const tcam = camera.transform();
+	const tscr = screen_transform(W);
+	data.proj(tcam, tscr);
+	data.draw(canvas);
+}
+
+function animate(canvas, camera, user, data) {
+	draw(canvas, camera, data);
+	camera.yaw += deg(2);
+	camera.roll += deg(0.1);
+	camera.pitch += deg(0.2);
+
+	// zoome in/out.
+	if (user.key == "KeyI") { camera.depth -= 0.05; }
+	if (user.key == "KeyO") { camera.depth += 0.05; }
+
+	requestAnimationFrame(() => animate(canvas, camera, user, data));
+}
+
+onload = function() {
+    const canvas = document.querySelector("#draw");
+	const m = cube();
+	const data = new Data(m);
+	var camera = new Camera();
+
+	camera.yaw = deg(50);
+	camera.roll = deg(60);
+	camera.pitch = deg(70);
+
+	var user = new User();
+	animate(canvas, camera, user, data);
+}
+
+</script>
+</head>
+<body>
+<canvas id="draw" width=500 height=500></canvas>
+</body>
+</html>

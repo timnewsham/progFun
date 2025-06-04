@@ -189,6 +189,11 @@ class Vec3 extends Vec {
 	vec2() {
 		return new Vec2(this.i, this.j);
 	}
+
+	// perp returns a vector perpendicular to this one in the i/j plane.
+	perp() {
+		return new Vec3(this.j, -this.i, this.k);
+	}
 }
 
 // Vec4 is a 4-dimensional vector.
@@ -229,6 +234,10 @@ class Vec4 extends Vec {
 		return hsla(this.i, this.j, this.k, this.w);
 	}
 
+	vec2() {
+		return new Vec2(this.i, this.j);
+	}
+
 	vec3() {
 		return new Vec3(this.i, this.j, this.k);
 	}
@@ -242,7 +251,15 @@ class Vec4 extends Vec {
 	// hvec4 returns a vec4 when w is normalized to 1.0.
 	hvec4() {
 		const f = 1.0 / this.w;
-		return this.scale(f);
+
+		// hack: don't normalize the depth value, we want to use it later.
+		//return this.scale(f);
+		return new Vec4(f * this.i, f * this.j, this.k, 1.0);
+	}
+
+	// perp returns a vector perpendicular to this one in the i/j plane.
+	perp() {
+		return new Vec4(this.j, -this.i, this.k, this.w);
 	}
 }
 
