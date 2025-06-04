@@ -6,7 +6,7 @@
 <script src="math.js"></script>
 <script src="model/cube.js"></script>
 <script>
-var glob = null;
+const plotDepth = false;
 
 function forEachPixel(W, H, f) {
     for(var y = 0; y < H; y++) {
@@ -102,21 +102,28 @@ class Tri {
 				this.bmin.j <= p.j && p.j <= this.bmax.j);
 	}
 
-	// pointIn is true if p is in the triangle's screen position.
+	// pointIn is false if p is not in the triangle's screen position,
+	// and true with a positive depth value if p is inside the triangle.
 	pointIn(p) {
 		if(!this.pointInBounds(p)) { return false; }
 
 		const a = this.a.v.scrpos;
 		const b = this.b.v.scrpos;
 		const c = this.c.v.scrpos;
-		const AP = p.sub(a);
-		const BP = p.sub(b);
-		const CP = p.sub(c);
-		const ABright = this.ABperp.dot(AP) > 0; // p is on right side of AB if ABperp dot AP is greater than zero.
-		const BCright = this.BCperp.dot(BP) > 0;
-		const CAright = this.CAperp.dot(CP) > 0;
-		//return ABright == BCright && BCright == CAright; // p is on the same side of all sides.
-		return !ABright && !BCright && !CAright; // p is on the left side of all sides, which ignores back facing sides.
+		const PA = a.vec2().sub(p);
+		const PB = b.vec2().sub(p);
+		const PC = c.vec2().sub(p);
+		const ABParea = PA.dot(this.ABperp); // * 0.5, but we normalize later...
+		const BCParea = PB.dot(this.BCperp);
+		const CAParea = PC.dot(this.CAperp);
+		const pInside = ABParea > 0 && BCParea > 0 && CAParea > 0;
+		if(!pInside) {
+			return false;
+		}
+
+		const depths = new Vec3(a.k, b.k, c.k);
+		const bary = new Vec3(BCParea, CAParea, ABParea).scale(1.0 / (BCParea + CAParea + ABParea));
+		return depths.dot(bary);
 	}
 }
 
@@ -127,7 +134,7 @@ class Data {
 		//m.fs = m.fs.slice(0,1);
 		m.fs.forEach(face => {
 			face.forEachTriangle((a,b,c) => {
-				const col = new Vec3(Math.random(), 0.8, 0.8).hsl();
+				const col = new Vec3(Math.random(), 0.8, 0.8);
 				const tri = new Tri(a,b,c, col);
 				this.tris.push(tri);
 			});
@@ -154,9 +161,17 @@ class Data {
 		forEachPixel(W, H, p => {
 			var color = "black";
 			for(const tri of this.tris) {
-				if(tri.visible && tri.pointIn(p)) {
-					color = tri.color;
-					break;
+				var bestDepth = Number.POSITIVE_INFINITY;
+				if(tri.visible) {
+					const depth = tri.pointIn(p);
+					if(depth !== false && depth < bestDepth) {
+						bestDepth = depth;
+						if(plotDepth) {
+							color = hsl(0, 0, 3.0/depth);
+						} else {
+							color = tri.color.scale(6.0/depth).hsl();;
+						}
+					}
 				}
 			}
 			ctx.fillStyle = color;
@@ -192,11 +207,6 @@ onload = function() {
 	const m = cube();
 	const data = new Data(m);
 	var camera = new Camera();
-
-	camera.yaw = deg(50);
-	camera.roll = deg(60);
-	camera.pitch = deg(70);
-
 	var user = new User();
 	animate(canvas, camera, user, data);
 }
