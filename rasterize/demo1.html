@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
 <style>
@@ -26,6 +27,7 @@ class Camera {
 			Mat4.roll(this.roll),
 			Mat4.pitch(this.pitch),
 			Mat4.translate(new Vec3(0, 0, this.depth)),
+			Mat4.persp(),
 		);
 	}
 }
@@ -46,17 +48,18 @@ class Point {
 
 	// project the point using the camera.
 	proj(tcam) {
-		const campos = tcam.mulvec(this.pos.vec4()).vec3();
-		this.proj_depth = campos.k;
+		const campos = tcam.mulvec(this.pos.vec4());
+		this.proj_depth = campos.w;
 		if (this.proj_depth < 0.5) {
 			this.proj_rad = 0;
 			return;
 		}
 
 		// TODO: these could be done in Vec3.
-		this.proj_pos = new Vec4(campos.i / campos.k, campos.j / campos.k, 1.0, 1.0);
-		this.proj_rad = Math.floor(1 + this.rad / campos.k);
-		this.proj_col = this.col.scale(1.5 / campos.k).rgb();
+		const f = 1.0 / campos.w;
+		this.proj_pos = campos.scale(f); // perspective projection, a la campos.hvec4().
+		this.proj_rad = Math.floor(1 + f * this.rad);
+		this.proj_col = this.col.scale(1.5 * f).rgb();
 	}
 
 	draw(ctx, tscr) {

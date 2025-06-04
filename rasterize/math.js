@@ -217,6 +217,18 @@ class Vec4 extends Vec {
 	vec3() {
 		return new Vec3(this.i, this.j, this.k);
 	}
+
+	// hvec3 returns a vec3 when w is normalized to 1.0.
+	hvec3() {
+		const f = 1.0 / this.w;
+		return new Vec3(f * this.i, f * this.j, f * this.k);
+	}
+
+	// hvec4 returns a vec4 when w is normalized to 1.0.
+	hvec4() {
+		const f = 1.0 / this.w;
+		return this.scale(f);
+	}
 }
 
 class Mat2 {
@@ -409,6 +421,17 @@ class Mat4 {
 			0.0, v.j, 0.0, 0.0,
 			0.0, 0.0, v.k, 0.0,
 			0.0, 0.0, 0.0, 1.0,
+		);
+	}
+
+	// persp returns a matrix which scales w by the k component,
+	// so that when converted with hvec3(), coordinates are scaled for perspective.
+	static persp(v) {
+		return new Mat4(
+			1.0, 0.0, 0.0, 0.0,
+			0.0, 1.0, 0.0, 0.0,
+			0.0, 0.0, 1.0, 0.0,
+			0.0, 0.0, 1.0, 0.0,
 		);
 	}
 
