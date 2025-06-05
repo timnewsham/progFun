@@ -7,8 +7,8 @@
 <script src="model/cube.js"></script>
 <script>
 //var plotType = "depth";
-//var plotType = "uv";
-var plotType = "texture";
+var plotType = "uv";
+//var plotType = "texture";
 //var plotType = "triangle";
 var stop = false;
 
@@ -238,7 +238,7 @@ class Data {
 							const f = 3.0 / inTri.k;
 							color = new Vec3(f, f, f).scale(255);
 						} else if(plotType == "uv") {
-							color = uvColor(inTri.i, inTri.j).scale(255);
+							color = uvColor(inTri.i, inTri.j);
 						} else if(plotType == "texture") {
 							color = texture.get(inTri.i, inTri.j);
 						} else {
@@ -259,6 +259,9 @@ class UI {
 		this.data = data;
 		this.camera = new Camera();
 		this.user = new User();
+
+		this.camera.yaw = deg(15);
+		this.camera.pitch = deg(20);
 
 		this.W = canvas.width;
 		this.H = canvas.height;
