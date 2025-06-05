@@ -6,8 +6,8 @@
 <script src="math.js"></script>
 <script src="model/cube.js"></script>
 <script>
-var plotType = "depth";
-//var plotType = "uv";
+//var plotType = "depth";
+var plotType = "uv";
 //var plotType = "triangle";
 var stop = false;
 
@@ -143,6 +143,9 @@ class Tri {
 			at.j, bt.j, ct.j,
 			a.k,  b.k,  c.k,
 		);
+
+		// hrm.. the interpolation looks imperfect, ie the (u,v) along the edges of two triangles
+		// that make up one cube face.
 		return m.mulvec(bary); // interploating (u,v,z) at P from the three corners.
 	}
 }
@@ -187,15 +190,15 @@ class Data {
 			for(const tri of this.tris) {
 				var bestDepth = Number.POSITIVE_INFINITY;
 				if(tri.visible) {
-					const triPoint = tri.pointIn(p);
-					if(triPoint !== false && triPoint.k < bestDepth) {
-						bestDepth = triPoint.k;
+					const inTri = tri.pointIn(p);
+					if(inTri !== false && inTri.k < bestDepth) {
+						bestDepth = inTri.k;
 						if(plotType == "depth") {
-							color = hsl(0, 0, 3.0/triPoint.k);
+							color = hsl(0, 0, 3.0/inTri.k);
 						} else if(plotType == "uv") {
-							color = uvColor(triPoint.i, triPoint.j);
+							color = uvColor(inTri.i, inTri.j);
 						} else {
-							color = tri.color.scale(6.0/triPoint.k).hsl();;
+							color = tri.color.scale(6.0/inTri.k).hsl();;
 						}
 					}
 				}
