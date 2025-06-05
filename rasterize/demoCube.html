@@ -25,9 +25,9 @@ const black = new Vec3(0,0,0);
 
 // uvColor returns color at u,v for a debug texture.
 function uvColor(u, v) {
-	let ux = Math.floor(u * 80);
-	let vx = Math.floor(v * 80);
-	if(ux % 4 == 1 || vx % 4 == 1) {
+	let ux = Math.floor(u * 50);
+	let vx = Math.floor(v * 50);
+	if((ux + vx) % 2 == 1) {
 		return black;
 	}
 	return new Vec3(u, v, 0).scale(255);
