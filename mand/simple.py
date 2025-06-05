@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import sys
 
 MAX = 256
@@ -17,9 +17,9 @@ H = 39
 CHARS = 'abcdefg'
 
 def plot(x0, y0, x1, y1) :
-    for yy in xrange(H) :
+    for yy in range(H) :
         y = y0 + (y1-y0) * yy / (H - 1)
-        for xx in xrange(W) :
+        for xx in range(W) :
             x = x0 + (x1-x0) * xx / (W - 1)
 
             n = mand(complex(x, y))
