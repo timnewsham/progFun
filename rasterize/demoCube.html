@@ -155,7 +155,7 @@ class Tri {
 	// pointIn is false if p is not in the triangle's screen position,
 	// and true with a Vec3(texture-u, texture-v, pixel-depth) if p is inside the triangle.
 	pointIn(p) {
-		if(!this.pointInBounds(p)) { return false; }
+		if(!this.visible || !this.pointInBounds(p)) { return false; }
 
 		const a = this.a.v.scrpos;
 		const b = this.b.v.scrpos;
@@ -231,39 +231,33 @@ class Data {
 		this.tris.forEach(tri => tri.precompute());
 	}
 
-	// sets pixel(x,y) to color(r,g,b), in range 0..255.
-	putPixel(imageData, W, H, p, color) {
-		const data = imageData.data;
-		const off = 4 * (p.i + p.j * W);
-		data[off+0] = color.i;
-		data[off+1] = color.j;
-		data[off+2] = color.k;
-		data[off+3] = 255;
-	}
-
 	draw(ctx, imageData, W, H) {
+		const pixelData = imageData.data;
+		var off = 0;
 		forEachPixel(W, H, p => {
 			var color = black;
 			for(const tri of this.tris) {
 				var bestDepth = Number.POSITIVE_INFINITY;
-				if(tri.visible) {
-					const inTri = tri.pointIn(p);
-					if(inTri !== false && inTri.k < bestDepth) {
-						bestDepth = inTri.k;
-						if(this.plotType == "depth") {
-							const f = 3.0 / inTri.k;
-							color = new Vec3(f, f, f).scale(255);
-						} else if(this.plotType == "uv") {
-							color = uvColor(inTri.i, inTri.j);
-						} else if(this.plotType == "texture") {
-							color = texture.get(inTri.i, inTri.j);
-						} else {
-							color = tri.color.scale(6.0 / inTri.k).scale(255);
-						}
+				const inTri = tri.pointIn(p);
+				if(inTri !== false && inTri.k < bestDepth) {
+					bestDepth = inTri.k;
+					if(this.plotType == "depth") {
+						const f = 3.0 / inTri.k;
+						color = new Vec3(f, f, f).scale(255);
+					} else if(this.plotType == "uv") {
+						color = uvColor(inTri.i, inTri.j);
+					} else if(this.plotType == "texture") {
+						color = texture.get(inTri.i, inTri.j);
+					} else {
+						color = tri.color.scale(6.0 / inTri.k).scale(255);
 					}
 				}
 			}
-			this.putPixel(imageData, W, H, p, color);
+
+			pixelData[off++] = color.i;
+			pixelData[off++] = color.j;
+			pixelData[off++] = color.k;
+			pixelData[off++] = 255;
 		});
 		ctx.putImageData(imageData, 0, 0);
 	}
