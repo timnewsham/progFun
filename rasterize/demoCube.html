@@ -68,7 +68,14 @@ class User {
 	constructor() {
 		this.key = "";
 		addEventListener("keydown", (ev) => { this.key = ev.code; });
-		addEventListener("keyup", (ev) => { this.key = "" });
+		addEventListener("keyup", (ev) => { this.key = ""; });
+	}
+
+	consumeKey(k) {
+		if(this.key == k) {
+			this.key = "";
+			return true;
+		}
 	}
 }
 
@@ -188,6 +195,7 @@ class Data {
 	constructor(m) {
 		this.points = [];
 		this.tris = [];
+		this.plotType = "tri";
 
 		// load all models into this.points and this.tris.
 		for(const model of arguments) {
@@ -200,6 +208,16 @@ class Data {
 				});
 			});
 		}
+	}
+
+	incrPlotType() {
+		const next = {
+			tri: "uv",
+			uv: "depth",
+			depth: "texture",
+			texture: "tri",
+		}
+		this.plotType = next[this.plotType] || "tri";
 	}
 
 	proj(tcam, tscr) {
@@ -234,12 +252,12 @@ class Data {
 					const inTri = tri.pointIn(p);
 					if(inTri !== false && inTri.k < bestDepth) {
 						bestDepth = inTri.k;
-						if(plotType == "depth") {
+						if(this.plotType == "depth") {
 							const f = 3.0 / inTri.k;
 							color = new Vec3(f, f, f).scale(255);
-						} else if(plotType == "uv") {
+						} else if(this.plotType == "uv") {
 							color = uvColor(inTri.i, inTri.j);
-						} else if(plotType == "texture") {
+						} else if(this.plotType == "texture") {
 							color = texture.get(inTri.i, inTri.j);
 						} else {
 							color = tri.color.scale(6.0 / inTri.k).scale(255);
@@ -286,6 +304,7 @@ class UI {
 		const speed = 0.05;
 		if (this.user.key == "KeyI") { this.camera.depth -= speed; }
 		if (this.user.key == "KeyO") { this.camera.depth += speed; }
+		if (this.user.consumeKey("KeyT")) { this.data.incrPlotType(); }
 
 		if(!stop) {
 			requestAnimationFrame(() => this.animate());
