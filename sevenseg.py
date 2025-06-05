@@ -58,9 +58,10 @@ def test():
     show(seven_seg_decodes('9','0','2','1','0', REV=True))
 
 def count():
-    for n in range(1000):
-        if n:
+    for nn in range(1000):
+        if nn:
             up_lines(9)
+        n = 999 - nn
         ns = [digit for digit in f'{n:3d}']
         show(seven_seg_decodes(*ns, REV=False))
         up_lines(9)
