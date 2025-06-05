@@ -6,7 +6,10 @@
 <script src="math.js"></script>
 <script src="model/cube.js"></script>
 <script>
-const plotDepth = false;
+//var plotType = "depth";
+var plotType = "uv";
+//var plotType = "triangle";
+var stop = false;
 
 function forEachPixel(W, H, f) {
     for(var y = 0; y < H; y++) {
@@ -15,6 +18,16 @@ function forEachPixel(W, H, f) {
             f(p);
         }
     }
+}
+
+// uvColor returns color at u,v for a debug texture.
+function uvColor(u, v) {
+	let ux = Math.floor(u * 80);
+	let vx = Math.floor(v * 80);
+	if(ux % 4 == 1 || vx % 4 == 1) {
+		return "black";
+	}
+	return new Vec3(u, v, 0).rgb();
 }
 
 class User {
@@ -103,27 +116,34 @@ class Tri {
 	}
 
 	// pointIn is false if p is not in the triangle's screen position,
-	// and true with a positive depth value if p is inside the triangle.
+	// and true with a Vec3(texture-u, texture-v, pixel-depth) if p is inside the triangle.
 	pointIn(p) {
 		if(!this.pointInBounds(p)) { return false; }
 
 		const a = this.a.v.scrpos;
 		const b = this.b.v.scrpos;
 		const c = this.c.v.scrpos;
-		const PA = a.vec2().sub(p);
-		const PB = b.vec2().sub(p);
-		const PC = c.vec2().sub(p);
-		const ABParea = PA.dot(this.ABperp); // * 0.5, but we normalize later...
-		const BCParea = PB.dot(this.BCperp);
-		const CAParea = PC.dot(this.CAperp);
+		const AP = p.sub(a.vec2());
+		const BP = p.sub(b.vec2());
+		const CP = p.sub(c.vec2());
+		const ABParea = AP.dot(this.ABperp); // * 0.5, but we normalize later...
+		const BCParea = BP.dot(this.BCperp);
+		const CAParea = CP.dot(this.CAperp);
 		const pInside = ABParea > 0 && BCParea > 0 && CAParea > 0;
 		if(!pInside) {
 			return false;
 		}
 
-		const depths = new Vec3(a.k, b.k, c.k);
+		const at = this.a.vt;
+		const bt = this.b.vt;
+		const ct = this.c.vt;
 		const bary = new Vec3(BCParea, CAParea, ABParea).scale(1.0 / (BCParea + CAParea + ABParea));
-		return depths.dot(bary);
+		const m = new Mat3(
+			at.i, bt.i, ct.i,
+			at.j, bt.j, ct.j,
+			a.k,  b.k,  c.k,
+		);
+		return m.mulvec(bary); // interploating (u,v,z) at P from the three corners.
 	}
 }
 
@@ -167,11 +187,13 @@ class Data {
 			for(const tri of this.tris) {
 				var bestDepth = Number.POSITIVE_INFINITY;
 				if(tri.visible) {
-					const depth = tri.pointIn(p);
-					if(depth !== false && depth < bestDepth) {
-						bestDepth = depth;
-						if(plotDepth) {
+					const triPoint = tri.pointIn(p);
+					if(triPoint !== false && triPoint.k < bestDepth) {
+						bestDepth = triPoint.k;
+						if(plotType == "depth") {
 							color = hsl(0, 0, 3.0/depth);
+						} else if(plotType = "uv") {
+							color = uvColor(triPoint.i, triPoint.j);
 						} else {
 							color = tri.color.scale(6.0/depth).hsl();;
 						}
@@ -212,7 +234,9 @@ class UI {
 		if (this.user.key == "KeyI") { this.camera.depth -= speed; }
 		if (this.user.key == "KeyO") { this.camera.depth += speed; }
 
-		requestAnimationFrame(() => this.animate());
+		if(!stop) {
+			requestAnimationFrame(() => this.animate());
+		}
 	}
 }
 

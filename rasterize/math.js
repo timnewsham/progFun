@@ -130,7 +130,7 @@ class Vec2 extends Vec {
 
 	// perp returns a vector perpendicular to this one.
 	perp() {
-		return new Vec2(this.j, -this.i);
+		return new Vec2(-this.j, this.i);
 	}
 }
 
