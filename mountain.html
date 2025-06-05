@@ -363,6 +363,12 @@ class Mountain {
 }
 
 onload = function() {
+	const detailSlider = document.querySelector("#detail");
+	detailSlider.addEventListener("input", (event) => {
+		const detail = event.target.value;
+		m = new Mountain(detail, m.wireframe, m.theta, m.phi);
+		m.plot();
+	});
 	const thetaSlider = document.querySelector("#theta");
 	thetaSlider.addEventListener("input", (event) => {
 		m.theta = event.target.value;
@@ -384,9 +390,10 @@ onload = function() {
 		m.plot();
 	});
 
+	const detail = detailSlider.value;
 	const theta = thetaSlider.value;
 	const phi = phiSlider.value;
-	var m = new Mountain(6, false, theta, phi);
+	var m = new Mountain(detail, false, theta, phi);
 	m.plot(); 
 }
 
@@ -395,6 +402,7 @@ onload = function() {
 </head>
 <body>
 <div>
+  <input type="range" id="detail" name="detail" min="2" max="8" value="5"/><label for="detail">detail</label><br/>
   <input type="range" id="theta" name="theta" min="-90" max="90" value="10"/><label for="theta">theta</label><br/>
   <input type="range" id="phi" name="phi" min="-45" max="45" value="-30"/><label for="phi">phi</label><br/>
   <input type="checkbox" id="wireframe" name="wireframe" /><label for="wireframe">wireframe</label><br/>
