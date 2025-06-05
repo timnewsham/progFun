@@ -7,7 +7,8 @@
 <script src="model/cube.js"></script>
 <script>
 //var plotType = "depth";
-var plotType = "uv";
+//var plotType = "uv";
+var plotType = "texture";
 //var plotType = "triangle";
 var stop = false;
 
@@ -29,6 +30,40 @@ function uvColor(u, v) {
 	}
 	return new Vec3(u, v, 0).rgb();
 }
+
+class Texture {
+	constructor() {
+		const img = new Image();
+		img.crossOrigin = "anonymous";
+		img.src = "https://upload.wikimedia.org/wikipedia/commons/d/de/TestScreen_square.svg";
+		img.addEventListener("load", () => {
+			const canvas = document.querySelector("#texture");
+			this.W = canvas.width;
+			this.H = canvas.height;
+
+			const ctx = canvas.getContext("2d", { willReadFrequently: true });
+			ctx.drawImage(img, 0, 0, this.W, this.H);
+			img.style.display = "none";
+
+			this.imageData = ctx.getImageData(0, 0, this.W, this.H).data;
+		});
+	}
+
+	get(u, v) {
+		const x = Math.floor(u * this.W);
+		const y = Math.floor(v * this.H);
+		const off = 4 * (x + y * this.W);
+		const r = this.imageData[off];
+		const g = this.imageData[off+1];
+		const b = this.imageData[off+2];
+		const a = this.imageData[off+3];
+
+		// This isnt that efficient.
+		// TODO: This would be more efficient if we werent passing around rgba data as strings.
+		return `rgb(${r} ${g} ${b} / ${a/255})`;
+	}
+}
+var texture = new Texture();
 
 class User {
 	constructor() {
@@ -197,12 +232,16 @@ class Data {
 							color = hsl(0, 0, 3.0/inTri.k);
 						} else if(plotType == "uv") {
 							color = uvColor(inTri.i, inTri.j);
+						} else if(plotType == "texture") {
+							color = texture.get(inTri.i, inTri.j);
 						} else {
 							color = tri.color.scale(6.0/inTri.k).hsl();;
 						}
 					}
 				}
 			}
+
+			// TODO: This would be more efficient writing directly to the canvas ImageData.
 			ctx.fillStyle = color;
 			ctx.fillRect(p.i, p.j, 1, 1);
 		});
@@ -252,5 +291,6 @@ onload = function() {
 </head>
 <body>
 <canvas id="draw" width=400 height=400></canvas>
+<canvas id="texture" width=128 height=128 hidden=true></canvas>
 </body>
 </html>
