@@ -21,14 +21,16 @@ function forEachPixel(W, H, f) {
     }
 }
 
+const black = new Vec3(0,0,0);
+
 // uvColor returns color at u,v for a debug texture.
 function uvColor(u, v) {
 	let ux = Math.floor(u * 80);
 	let vx = Math.floor(v * 80);
 	if(ux % 4 == 1 || vx % 4 == 1) {
-		return "black";
+		return black;
 	}
-	return new Vec3(u, v, 0).rgb();
+	return new Vec3(u, v, 0).scale(255);
 }
 
 class Texture {
@@ -56,11 +58,8 @@ class Texture {
 		const r = this.imageData[off];
 		const g = this.imageData[off+1];
 		const b = this.imageData[off+2];
-		const a = this.imageData[off+3];
-
-		// This isnt that efficient.
-		// TODO: This would be more efficient if we werent passing around rgba data as strings.
-		return `rgb(${r} ${g} ${b} / ${a/255})`;
+		//const a = this.imageData[off+3];
+		return new Vec3(r,g,b)
 	}
 }
 var texture = new Texture();
@@ -195,7 +194,7 @@ class Data {
 			this.points.push(...model.vs);
 			model.fs.forEach(face => {
 				face.forEachTriangle((a,b,c) => {
-					const col = new Vec3(Math.random(), 0.8, 0.8);
+					const col = new Vec3(Math.random(), Math.random(), Math.random()).scale(255);
 					const tri = new Tri(a,b,c, col);
 					this.tris.push(tri);
 				});
@@ -216,12 +215,19 @@ class Data {
 		this.tris.forEach(tri => tri.precompute());
 	}
 
-	draw(canvas) {
-		const ctx = canvas.getContext('2d');
-    	const W = canvas.width;
-    	const H = canvas.height;
+	// sets pixel(x,y) to color(r,g,b), in range 0..255.
+	putPixel(imageData, W, H, p, color) {
+		const data = imageData.data;
+		const off = 4 * (p.i + p.j * W);
+		data[off+0] = color.i;
+		data[off+1] = color.j;
+		data[off+2] = color.k;
+		data[off+3] = 255;
+	}
+
+	draw(ctx, imageData, W, H) {
 		forEachPixel(W, H, p => {
-			var color = "black";
+			var color = black;
 			for(const tri of this.tris) {
 				var bestDepth = Number.POSITIVE_INFINITY;
 				if(tri.visible) {
@@ -229,22 +235,21 @@ class Data {
 					if(inTri !== false && inTri.k < bestDepth) {
 						bestDepth = inTri.k;
 						if(plotType == "depth") {
-							color = hsl(0, 0, 3.0/inTri.k);
+							const f = 3.0 / inTri.k;
+							color = new Vec3(f, f, f).scale(255);
 						} else if(plotType == "uv") {
-							color = uvColor(inTri.i, inTri.j);
+							color = uvColor(inTri.i, inTri.j).scale(255);
 						} else if(plotType == "texture") {
 							color = texture.get(inTri.i, inTri.j);
 						} else {
-							color = tri.color.scale(6.0/inTri.k).hsl();;
+							color = tri.color.scale(6.0 / inTri.k).scale(255);
 						}
 					}
 				}
 			}
-
-			// TODO: This would be more efficient writing directly to the canvas ImageData.
-			ctx.fillStyle = color;
-			ctx.fillRect(p.i, p.j, 1, 1);
+			this.putPixel(imageData, W, H, p, color);
 		});
+		ctx.putImageData(imageData, 0, 0);
 	}
 }
 
@@ -254,15 +259,18 @@ class UI {
 		this.data = data;
 		this.camera = new Camera();
 		this.user = new User();
+
+		this.W = canvas.width;
+		this.H = canvas.height;
+		this.ctx = canvas.getContext('2d');
+		this.imageData = this.ctx.getImageData(0, 0, this.W, this.H);
 	}
 
 	draw() {
-		const W = this.canvas.width;
-		const H = this.canvas.height;
 		const tcam = this.camera.transform();
-		const tscr = screen_transform(W);
+		const tscr = screen_transform(this.W);
 		this.data.proj(tcam, tscr);
-		this.data.draw(this.canvas);
+		this.data.draw(this.ctx, this.imageData, this.W, this.H);
 	}
 
 	animate() {
