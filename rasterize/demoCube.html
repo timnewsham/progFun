@@ -4,7 +4,7 @@
 <style>
 </style>
 <script src="math.js"></script>
-<script src="model/cube.js"></script>
+<script src="model.js"></script>
 <script>
 var stop = false;
 
@@ -312,7 +312,8 @@ class UI {
 
 onload = function() {
     const canvas = document.querySelector("#draw");
-	const ui = new UI(canvas, new Data(cube()));
+	const ui = new UI(canvas, new Data(new Model("cube", cube)));
+	//const ui = new UI(canvas, new Data(new Model("suzanne", suzanne)));
 	ui.animate();
 }
 </script>
