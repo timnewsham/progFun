@@ -194,7 +194,7 @@ class Data {
 			this.points.push(...model.vs);
 			model.fs.forEach(face => {
 				face.forEachTriangle((a,b,c) => {
-					const col = new Vec3(Math.random(), Math.random(), Math.random()).scale(255);
+					const col = new Vec3(Math.random(), Math.random(), Math.random());
 					const tri = new Tri(a,b,c, col);
 					this.tris.push(tri);
 				});
