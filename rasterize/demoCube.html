@@ -6,8 +6,8 @@
 <script src="math.js"></script>
 <script src="model/cube.js"></script>
 <script>
-//var plotType = "depth";
-var plotType = "uv";
+var plotType = "depth";
+//var plotType = "uv";
 //var plotType = "triangle";
 var stop = false;
 
@@ -191,11 +191,11 @@ class Data {
 					if(triPoint !== false && triPoint.k < bestDepth) {
 						bestDepth = triPoint.k;
 						if(plotType == "depth") {
-							color = hsl(0, 0, 3.0/depth);
-						} else if(plotType = "uv") {
+							color = hsl(0, 0, 3.0/triPoint.k);
+						} else if(plotType == "uv") {
 							color = uvColor(triPoint.i, triPoint.j);
 						} else {
-							color = tri.color.scale(6.0/depth).hsl();;
+							color = tri.color.scale(6.0/triPoint.k).hsl();;
 						}
 					}
 				}
