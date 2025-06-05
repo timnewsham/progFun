@@ -6,10 +6,6 @@
 <script src="math.js"></script>
 <script src="model/cube.js"></script>
 <script>
-//var plotType = "depth";
-var plotType = "uv";
-//var plotType = "texture";
-//var plotType = "triangle";
 var stop = false;
 
 function forEachPixel(W, H, f) {
@@ -180,14 +176,16 @@ class Tri {
 		const ct = this.c.vt;
 		const bary = new Vec3(BCParea, CAParea, ABParea).scale(1.0 / (BCParea + CAParea + ABParea));
 		const m = new Mat3(
-			at.i, bt.i, ct.i,
-			at.j, bt.j, ct.j,
-			a.k,  b.k,  c.k,
+			at.i/a.k, bt.i/b.k, ct.i/c.k,
+			at.j/a.k, bt.j/b.k, ct.j/c.k,
+			1.0/a.k,  1.0/b.k,  1.0/c.k,
 		);
 
-		// hrm.. the interpolation looks imperfect, ie the (u,v) along the edges of two triangles
-		// that make up one cube face.
-		return m.mulvec(bary); // interploating (u,v,z) at P from the three corners.
+		let v = m.mulvec(bary); // interploating (u,v,z) at P from the three corners.
+		v.i = v.i / v.k;
+		v.j = v.j / v.k;
+		v.k = 1.0 / v.k;
+		return v;
 	}
 }
 
@@ -195,7 +193,7 @@ class Data {
 	constructor(m) {
 		this.points = [];
 		this.tris = [];
-		this.plotType = "tri";
+		this.plotType = "uv";
 
 		// load all models into this.points and this.tris.
 		for(const model of arguments) {
