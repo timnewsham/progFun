@@ -6,49 +6,50 @@
 <script src="math.js"></script>
 <script src="model.js"></script>
 <script>
-var stop = false;
-var useVec = false;
-var correctPerspective = true;
+var triAreaUseVec = false;
+var textureCorrectPerspective = true;
 
-function forEachPixel(W, H, f) {
-    for(var y = 0; y < H; y++) {
-        for(var x = 0; x < W; x++) {
-            const p = new Vec2(x, y);
-            f(p);
-        }
-    }
-}
+const black = new Vec4(0, 0, 0, 1.0);
 
-const black = new Vec3(0,0,0);
-
-// uvColor returns color at u,v for a debug texture.
+// uvColor returns color at u,v for a debug texture in RGBA [0..1].
 function uvColor(u, v) {
 	let ux = Math.floor(u * 50);
 	let vx = Math.floor(v * 50);
 	if((ux + vx) % 2 == 1) {
 		return black;
 	}
-	return new Vec3(u, v, 0).scale(255);
+	return new Vec4(u, v, 0, 1);
+}
+
+// scale RGB but not A.
+function scale_rgb(v, f) {
+	return new Vec4(f * v.i, f * v.j, f * v.k, v.w || 1);
 }
 
 class Texture {
-	constructor() {
-		const img = new Image();
-		img.crossOrigin = "anonymous";
-		img.src = "https://upload.wikimedia.org/wikipedia/commons/d/de/TestScreen_square.svg";
-		img.addEventListener("load", () => {
+	constructor(imgUrl) {
+		// TODO: generate canvas instead of attaching to existing one.
+		this.img = new Image();
+		this.img.addEventListener("load", () => {
 			const canvas = document.querySelector("#texture");
 			this.W = canvas.width;
 			this.H = canvas.height;
 
 			const ctx = canvas.getContext("2d", { willReadFrequently: true });
-			ctx.drawImage(img, 0, 0, this.W, this.H);
-			img.style.display = "none";
+			ctx.drawImage(this.img, 0, 0, this.W, this.H);
+			this.img.style.display = "none";
 
 			this.imageData = ctx.getImageData(0, 0, this.W, this.H).data;
 		});
+		this.setUrl(imgUrl);
 	}
 
+	setUrl(imgUrl) {
+		this.img.crossOrigin = "anonymous";
+		this.img.src = imgUrl;
+	}
+
+	// returns the color at (u,v) [0..1] in RGBA [0..255].
 	get(u, v) {
 		const x = Math.floor(u * this.W);
 		const y = Math.floor(v * this.H);
@@ -56,13 +57,12 @@ class Texture {
 		const r = this.imageData[off];
 		const g = this.imageData[off+1];
 		const b = this.imageData[off+2];
-		const a = this.imageData[off+3]; // unused...
-		return new Vec3(r,g,b)
+		const a = this.imageData[off+3];
+		return new Vec4(r,g,b,a);
 	}
 }
-var texture = new Texture();
 
-class User {
+class UserInput {
 	constructor() {
 		this.key = "";
 		this.keypress = "";
@@ -84,20 +84,23 @@ class Camera {
 		this.yaw = 0;
 		this.roll = 0;
 		this.pitch = 0;
+		this.zoom = 1.0;
 	}
 
 	transform() {
+		const zoom = new Vec4(this.zoom, this.zoom, 1, 1);
 		return transforms(
 			Mat4.yaw(this.yaw),
 			Mat4.roll(this.roll),
 			Mat4.pitch(this.pitch),
 			Mat4.translate(new Vec3(0, 0, this.depth)),
+			Mat4.scales(zoom),
 			Mat4.persp(),
 		);
 	}
 }
 
-function screen_transform(W) {
+function screen_transform(W, H) {
 	// note: does not affect z coordinate.
 	return transforms(
 		Mat4.scales(new Vec3(W/2, -W/2, 1.0)),	// positive Y is up, scale X [-1,1] to [-W/2, W/2].
@@ -107,7 +110,7 @@ function screen_transform(W) {
 
 // Area of triangle with vertices a,b,c
 function triArea(a, b, c) {
-	if(useVec) {
+	if(triAreaUseVec) {
 		b = b.vec2();
 		c = c.vec2();
 		const ab_perp = b.sub(a).perp();
@@ -130,7 +133,7 @@ class Tri {
 		this.color = col;
 	}
 
-	precompute(dt, W, H) {
+	precompute() {
 		this.visible = this.a.v.visible && this.b.v.visible && this.c.v.visible;
 		if(!this.visible) {
 			return
@@ -182,7 +185,7 @@ class Tri {
 		const ct = this.c.vt;
 		const bary = new Vec3(Wa, Wb, Wc).scale(1.0 / this.area);
 
-		if(correctPerspective) {
+		if(textureCorrectPerspective) {
 			const m = new Mat3(
 				at.i/a.k, bt.i/b.k, ct.i/c.k,
 				at.j/a.k, bt.j/b.k, ct.j/c.k,
@@ -207,20 +210,76 @@ class Tri {
 	}
 }
 
-class Data {
-	constructor(m) {
+// View is 2D view area implemented as a canvas.
+// Draw updates the display by calling pixelFunc
+// which maps each pixel Vec2 into a color Vec4 (RGBA, [0..255]).
+// Provide a pixelFunc by subclassing and overriding, or as
+// a constructor arg.
+class View {
+	constructor(canvasSel, pixelFunc) {
+    	this.canvas = document.querySelector(canvasSel);
+		if(pixelFunc) {
+			this.pixelFunc = pixelFunc;
+		}
+		this.onResize();
+	}
+
+	onResize() {
+		this.W = this.canvas.width;
+		this.H = this.canvas.height;
+		this.ctx = this.canvas.getContext('2d');
+		this.imageData = this.ctx.getImageData(0, 0, this.W, this.H);
+	}
+
+	resize(W, H) {
+		this.canvas.width = W;
+		this.canvas.height = H;
+		onResize();
+	}
+
+	draw() {
+		const pixelData = this.imageData.data;
+		var off = 0;
+    	for(var y = 0; y < this.H; y++) {
+        	for(var x = 0; x < this.W; x++) {
+            	const p = new Vec2(x, y);
+            	const color = this.pixelFunc(p);
+				pixelData[off++] = color.i;
+				pixelData[off++] = color.j;
+				pixelData[off++] = color.k;
+				pixelData[off++] = color.w || 255;
+			}
+		}
+		this.ctx.putImageData(this.imageData, 0, 0);
+	}
+
+	// subclass+override or set view.pixelFunc
+	pixelFunc(p) {
+		return black.scale(255);
+	}
+}
+
+// randomColor returns a random RGBA [0..1] color.
+function randomColor() {
+	return new Vec4(Math.random(), Math.random(), Math.random(), 1.0);
+}
+
+// TrianglesView is a view on the 2D projection of collection of triangles.
+class TrianglesView extends View {
+	constructor(canvasSelector, someModelsHere) {
+		super(canvasSelector);
+		
 		this.points = [];
 		this.tris = [];
 		this.plotType = "uv";
 
 		// load all models into this.points and this.tris.
-		for(const model of arguments) {
+		const models = Array.from(arguments).slice(1);
+		for(const model of models) {
 			this.points.push(...model.vs);
 			model.fs.forEach(face => {
 				face.forEachTriangle((a,b,c) => {
-					const col = new Vec3(Math.random(), Math.random(), Math.random());
-					const tri = new Tri(a,b,c, col);
-					this.tris.push(tri);
+					this.tris.push(new Tri(a,b,c, randomColor()));
 				});
 			});
 		}
@@ -234,6 +293,7 @@ class Data {
 			texture: "tri",
 		}
 		this.plotType = next[this.plotType] || "tri";
+		console.log("plot", this.plotType);
 	}
 
 	proj(tcam, tscr) {
@@ -249,65 +309,51 @@ class Data {
 		this.tris.forEach(tri => tri.precompute());
 	}
 
-	draw(ctx, imageData, W, H) {
-		const pixelData = imageData.data;
-		var off = 0;
-		forEachPixel(W, H, p => {
-			var color = black;
-			var bestDepth = Number.POSITIVE_INFINITY;
-			for(const tri of this.tris) {
-				const inTri = tri.pointIn(p);
-				if(inTri !== false && inTri.k < bestDepth) {
-					bestDepth = inTri.k;
-					if(this.plotType == "depth") {
-						const f = 1.0 / inTri.k;
-						color = new Vec3(f, f, f).scale(255);
-					} else if(this.plotType == "uv") {
-						color = uvColor(inTri.i, inTri.j);
-					} else if(this.plotType == "texture") {
-						color = texture.get(inTri.i, inTri.j);
-					} else {
-						color = tri.color.scale(1.5 / inTri.k).scale(255);
-					}
+	// pixelFunc returns the color of the closest visible triangle at p.
+	pixelFunc(p) {
+		var color = black.scale(255);
+		var bestDepth = Number.POSITIVE_INFINITY;
+		for(const tri of this.tris) {
+			const inTri = tri.pointIn(p);
+			if(inTri !== false && inTri.k < bestDepth) {
+				bestDepth = inTri.k;
+				if(this.plotType == "depth") {
+					const f = 1.0 / inTri.k;
+					color = new Vec3(f, f, f).scale(255);
+				} else if(this.plotType == "uv") {
+					color = uvColor(inTri.i, inTri.j).scale(255);
+				} else if(this.plotType == "texture") {
+					color = texture.get(inTri.i, inTri.j);
+				} else {
+					color = scale_rgb(tri.color, 1 / inTri.k).scale(255);
 				}
 			}
-
-			pixelData[off++] = color.i;
-			pixelData[off++] = color.j;
-			pixelData[off++] = color.k;
-			pixelData[off++] = 255;
-		});
-		ctx.putImageData(imageData, 0, 0);
+		}
+		return color;
 	}
 }
 
-class UI {
-	constructor(canvas, data) {
-		this.canvas = canvas;
-		this.data = data;
-		this.camera = new Camera();
-		this.user = new User();
+class Controller {
+	constructor(canvasSelector, somoModelsHere) {
+		this.view = new TrianglesView(...arguments);
 
-		this.camera.depth = 2;
+		this.run = true;
+		this.user = new UserInput();
+		this.camera = new Camera();
+
 		this.camera.yaw = deg(15);
 		this.camera.pitch = deg(20);
 
-		this.W = canvas.width;
-		this.H = canvas.height;
-		this.ctx = canvas.getContext('2d');
-		this.imageData = this.ctx.getImageData(0, 0, this.W, this.H);
 	}
 
 	draw() {
 		const tcam = this.camera.transform();
-		const tscr = screen_transform(this.W);
-		this.data.proj(tcam, tscr);
-		this.data.draw(this.ctx, this.imageData, this.W, this.H);
+		const tscr = screen_transform(this.view.W);
+		this.view.proj(tcam, tscr);
+		this.view.draw();
 	}
 
-	animate() {
-		this.draw();
-
+	update() {
 		this.camera.yaw += deg(2);
 		this.camera.roll += deg(0.1);
 		this.camera.pitch += deg(0.2);
@@ -315,24 +361,36 @@ class UI {
 		const speed = 0.05;
 		if (this.user.key == "KeyI") { this.camera.depth -= speed; }
 		if (this.user.key == "KeyO") { this.camera.depth += speed; }
-		if (this.user.consumeKey("KeyT")) { this.data.incrPlotType(); }
+	 	if (this.user.key == "KeyK") { this.camera.zoom *= 1.0-speed; };
+		if (this.user.key == "KeyL") { this.camera.zoom *= 1.0+speed; };
 
-		if(!stop) {
+		if (this.user.consumeKey("KeyT")) { this.view.incrPlotType(); }
+	}
+
+	animate() {
+		this.update();
+		this.draw();
+		if(this.run) {
 			requestAnimationFrame(() => this.animate());
 		}
 	}
 }
 
+// TODO: this should not be a global but should be attached to each model it is related to!
+const texture = new Texture("https://upload.wikimedia.org/wikipedia/commons/d/de/TestScreen_square.svg");
+
+// global for testing from JS console.
+var ui;
+
 onload = function() {
-    const canvas = document.querySelector("#draw");
-	//const ui = new UI(canvas, new Data(new Model(cube)));
-	const ui = new UI(canvas, new Data(new Model(suzanne)));
+	ui = new Controller("#draw", new Model(cube));
+	//ui.run = false;
 	ui.animate();
 }
 </script>
 </head>
 <body>
-<canvas id="draw" width=200 height=200></canvas>
+<canvas id="draw" width=400 height=400></canvas>
 <canvas id="texture" width=128 height=128 hidden=true></canvas>
 </body>
 </html>

@@ -37,8 +37,7 @@ function words(l) {
 }
 
 class Model {
-	constructor(name, spec) {
-		this.name = name;
+	constructor(spec) {
 		this.vs = [];
 		this.vns = [];
 		this.vts = [];

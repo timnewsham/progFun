@@ -324,7 +324,7 @@ class UI {
 
 onload = function() {
     const canvas = document.querySelector("#draw");
-	const ui = new UI(canvas, new Data(new Model("cube", cube)));
+	const ui = new UI(canvas, new Data(new Model(cube)));
 	//const ui = new UI(canvas, new Data(new Model("suzanne", suzanne)));
 	ui.animate();
 }
