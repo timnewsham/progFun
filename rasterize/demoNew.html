@@ -80,20 +80,23 @@ class UserInput {
 
 class Camera {
 	constructor() {
-		this.depth = 3;
-		this.yaw = 0;
-		this.roll = 0;
-		this.pitch = 0;
-		this.zoom = 1.0;
+		this.t = Mat4.id();
+		this.zoomScale = 1.0;
+
+		this.move(new Vec3(0, 0, -3.0));
 	}
 
+	move(p) { this.t = Mat4.translate(p.scale(-1)).mul(this.t); }
+	yaw(theta) { this.t = Mat4.yaw(-theta).mul(this.t); }
+	pitch(theta) { this.t = Mat4.pitch(-theta).mul(this.t); }
+	roll(theta) { this.t = Mat4.roll(-theta).mul(this.t); }
+
+	zoom(f) { this.zoomScale *= f; }
+
 	transform() {
-		const zoom = new Vec4(this.zoom, this.zoom, 1, 1);
+		const zoom = new Vec4(this.zoomScale, this.zoomScale, 1, 1);
 		return transforms(
-			Mat4.yaw(this.yaw),
-			Mat4.roll(this.roll),
-			Mat4.pitch(this.pitch),
-			Mat4.translate(new Vec3(0, 0, this.depth)),
+			this.t,
 			Mat4.scales(zoom),
 			Mat4.persp(),
 		);
@@ -268,7 +271,7 @@ function randomColor() {
 class TrianglesView extends View {
 	constructor(canvasSelector, someModelsHere) {
 		super(canvasSelector);
-		
+
 		this.points = [];
 		this.tris = [];
 		this.plotType = "uv";
@@ -340,10 +343,6 @@ class Controller {
 		this.run = true;
 		this.user = new UserInput();
 		this.camera = new Camera();
-
-		this.camera.yaw = deg(15);
-		this.camera.pitch = deg(20);
-
 	}
 
 	draw() {
@@ -354,17 +353,31 @@ class Controller {
 	}
 
 	update() {
-		this.camera.yaw += deg(2);
-		this.camera.roll += deg(0.1);
-		this.camera.pitch += deg(0.2);
-
-		const speed = 0.05;
-		if (this.user.key == "KeyI") { this.camera.depth -= speed; }
-		if (this.user.key == "KeyO") { this.camera.depth += speed; }
-	 	if (this.user.key == "KeyK") { this.camera.zoom *= 1.0-speed; };
-		if (this.user.key == "KeyL") { this.camera.zoom *= 1.0+speed; };
+		//this.camera.yaw += deg(2);
+		//this.camera.roll += deg(0.1);
+		//this.camera.pitch += deg(0.2);
 
 		if (this.user.consumeKey("KeyT")) { this.view.incrPlotType(); }
+
+		const speed = 0.02;
+		if (this.user.key == "KeyQ") { this.camera.move(new Vec3(0, 0, speed)); }; // move forward
+		if (this.user.key == "KeyE") { this.camera.move(new Vec3(0, 0, -speed)); }; // move backward
+		if (this.user.key == "KeyA") { this.camera.move(new Vec3(-speed, 0, 0)); }; // move left
+		if (this.user.key == "KeyD") { this.camera.move(new Vec3(speed, 0, 0)); }; // move right
+		if (this.user.key == "KeyW") { this.camera.move(new Vec3(0, speed, 0)); }; // move up
+		if (this.user.key == "KeyX") { this.camera.move(new Vec3(0, -speed, 0)); }; // move down
+
+		const angSpeed = deg(1);
+		if (this.user.key == "KeyJ") { this.camera.yaw(-angSpeed); }; // look left
+		if (this.user.key == "KeyL") { this.camera.yaw(angSpeed); }; // look right
+		if (this.user.key == "KeyI") { this.camera.pitch(-angSpeed); }; // look up
+		if (this.user.key == "Comma") { this.camera.pitch(angSpeed); }; // look down
+		if (this.user.key == "KeyU") { this.camera.roll(angSpeed); }; // tilt left
+		if (this.user.key == "KeyO") { this.camera.roll(-angSpeed); }; // tilt right
+
+		const zoomSpeed = 0.01;
+		if (this.user.key == "KeyS") { this.camera.zoom(1 + zoomSpeed); }; // zoom in
+		if (this.user.key == "KeyK") { this.camera.zoom(1 - zoomSpeed); }; // zoom out
 	}
 
 	animate() {
