@@ -114,9 +114,9 @@ function triArea(a, b, c) {
 		return 0.5 * ab_perp.dot(ac);
 	}
 
-	// ab     = (b.i - a.i, b.j - a.j)
-	// ab_per = (a.j - b.j, b.i - a.i)
-	// ac     = (c.i - a.i, c.j - a.j)
+	// ab               = (b.i - a.i, b.j - a.j)
+	// ab_perp          = (a.j - b.j, b.i - a.i)
+	// ac               = (c.i - a.i, c.j - a.j)
 	// ab_perp dot ac   = (a.j - b.j) * (c.i - a.i) + (b.i - a.i) * (c.j - a.j)
 	return 0.5 * ((a.j - b.j) * (c.i - a.i) + (b.i - a.i) * (c.j - a.j));
 }
