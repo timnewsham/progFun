@@ -272,6 +272,12 @@ class TrianglesView extends View {
 	constructor(canvasSelector, someModelsHere) {
 		super(canvasSelector);
 
+		// TODO: these should be a method of some model container.
+		this.yaw = 0;
+		this.pitch = 0;
+		this.roll = 0;
+		this.trans = new Vec3(0,0,0);
+
 		this.points = [];
 		this.tris = [];
 		this.plotType = "uv";
@@ -299,9 +305,17 @@ class TrianglesView extends View {
 		console.log("plot", this.plotType);
 	}
 
+	// TODO: this should be a method of some model container.
 	proj(tcam, tscr) {
+		const transWithCam = transforms(
+			Mat4.yaw(this.yaw),
+			Mat4.roll(this.roll),
+			Mat4.pitch(this.pitch),
+			Mat4.translate(this.trans),
+			tcam,
+		);
 		this.points.forEach(p => {
-			const campos = tcam.mulvec(p.vec4());
+			const campos = transWithCam.mulvec(p.vec4());
 			p.visible = campos.w > 0.5;
 			if(p.visible) {
 				p.projpos = campos.hvec4();
@@ -312,27 +326,37 @@ class TrianglesView extends View {
 		this.tris.forEach(tri => tri.precompute());
 	}
 
-	// pixelFunc returns the color of the closest visible triangle at p.
-	pixelFunc(p) {
-		var color = black.scale(255);
+	// triAt returns the attributes of the closest visible triangle at p.
+	// TODO: this should be a method of some model container.
+	triAt(p) {
 		var bestDepth = Number.POSITIVE_INFINITY;
+		var bestTri = false;
 		for(const tri of this.tris) {
 			const inTri = tri.pointIn(p);
 			if(inTri !== false && inTri.k < bestDepth) {
 				bestDepth = inTri.k;
-				if(this.plotType == "depth") {
-					const f = 1.0 / inTri.k;
-					color = new Vec3(f, f, f).scale(255);
-				} else if(this.plotType == "uv") {
-					color = uvColor(inTri.i, inTri.j).scale(255);
-				} else if(this.plotType == "texture") {
-					color = texture.get(inTri.i, inTri.j);
-				} else {
-					color = scale_rgb(tri.color, 1 / inTri.k).scale(255);
-				}
+				bestTri = inTri;
 			}
 		}
-		return color;
+		return bestTri;
+	}
+
+	pixelFunc(p) {
+		const tri = this.triAt(p);
+		if(tri === false) {
+			return black.scale(255);
+		}
+
+		if(this.plotType == "depth") {
+			const f = 1.0 / tri.k;
+			return new Vec3(f, f, f).scale(255);
+		} else if(this.plotType == "uv") {
+			return uvColor(tri.i, tri.j).scale(255);
+		} else if(this.plotType == "texture") {
+			return texture.get(tri.i, tri.j);
+		} else {
+			return scale_rgb(tri.color, 1 / tri.k).scale(255);
+		}
 	}
 }
 
@@ -353,19 +377,19 @@ class Controller {
 	}
 
 	update() {
-		//this.camera.yaw += deg(2);
-		//this.camera.roll += deg(0.1);
-		//this.camera.pitch += deg(0.2);
+		this.view.yaw += deg(2);
+		this.view.roll += deg(0.1);
+		this.view.pitch += deg(0.2);
 
 		if (this.user.consumeKey("KeyT")) { this.view.incrPlotType(); }
 
 		const speed = 0.02;
-		if (this.user.key == "KeyQ") { this.camera.move(new Vec3(0, 0, speed)); }; // move forward
-		if (this.user.key == "KeyE") { this.camera.move(new Vec3(0, 0, -speed)); }; // move backward
+		if (this.user.key == "KeyW") { this.camera.move(new Vec3(0, 0, speed)); }; // move forward
+		if (this.user.key == "KeyX") { this.camera.move(new Vec3(0, 0, -speed)); }; // move backward
 		if (this.user.key == "KeyA") { this.camera.move(new Vec3(-speed, 0, 0)); }; // move left
 		if (this.user.key == "KeyD") { this.camera.move(new Vec3(speed, 0, 0)); }; // move right
-		if (this.user.key == "KeyW") { this.camera.move(new Vec3(0, speed, 0)); }; // move up
-		if (this.user.key == "KeyX") { this.camera.move(new Vec3(0, -speed, 0)); }; // move down
+		if (this.user.key == "KeyQ") { this.camera.move(new Vec3(0, speed, 0)); }; // move up
+		if (this.user.key == "KeyZ") { this.camera.move(new Vec3(0, -speed, 0)); }; // move down
 
 		const angSpeed = deg(1);
 		if (this.user.key == "KeyJ") { this.camera.yaw(-angSpeed); }; // look left
