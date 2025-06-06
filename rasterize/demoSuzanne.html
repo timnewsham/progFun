@@ -65,13 +65,14 @@ var texture = new Texture();
 class User {
 	constructor() {
 		this.key = "";
-		addEventListener("keydown", (ev) => { this.key = ev.code; });
+		this.keypress = "";
+		addEventListener("keydown", (ev) => { this.key = ev.code; this.keypress = ev.code; });
 		addEventListener("keyup", (ev) => { this.key = ""; });
 	}
 
 	consumeKey(k) {
-		if(this.key == k) {
-			this.key = "";
+		if(this.keypress == k) {
+			this.keypress = "";
 			return true;
 		}
 	}
@@ -135,16 +136,10 @@ class Tri {
 			return
 		}
 
+		// bounding box on screen.
 		const a = this.a.v.scrpos;
 		const b = this.b.v.scrpos;
 		const c = this.c.v.scrpos;
-		this.area = triArea(a, b, c);
-		if(this.area == 0) {
-			this.visible = false;
-			return;
-		}
-
-		// bounding box on screen.
 		this.bmin = new Vec3(
 			Math.min(a.i, b.i, c.i),
 			Math.min(a.j, b.j, c.j),
@@ -155,6 +150,9 @@ class Tri {
 			Math.max(a.j, b.j, c.j),
 			Math.max(a.k, b.k, c.k),
 		);
+
+		// area on screen
+		this.area = triArea(a, b, c);
 	}
 
 	// pointInBounds is true if p is in the triangle's screen position's bounding box.
@@ -171,10 +169,10 @@ class Tri {
 		const a = this.a.v.scrpos;
 		const b = this.b.v.scrpos;
 		const c = this.c.v.scrpos;
-		var Wc = triArea(a, b, p);
-		var Wa = triArea(b, c, p);
-		var Wb = triArea(c, a, p);
-		const pInside = Wa > 0 && Wb > 0 && Wc > 0;
+		const Wc = triArea(a, b, p);
+		const Wa = triArea(b, c, p);
+		const Wb = triArea(c, a, p);
+		const pInside = Wa >= 0 && Wb >= 0 && Wc >= 0;
 		if(!pInside) {
 			return false;
 		}
@@ -182,7 +180,7 @@ class Tri {
 		const at = this.a.vt;
 		const bt = this.b.vt;
 		const ct = this.c.vt;
-		const bary = new Vec3(Wa, Wb, Wc).scale(1/this.area);
+		const bary = new Vec3(Wa, Wb, Wc).scale(1.0 / this.area);
 
 		if(correctPerspective) {
 			const m = new Mat3(

@@ -65,13 +65,14 @@ var texture = new Texture();
 class User {
 	constructor() {
 		this.key = "";
-		addEventListener("keydown", (ev) => { this.key = ev.code; });
+		this.keypress = "";
+		addEventListener("keydown", (ev) => { this.key = ev.code; this.keypress = ev.code; });
 		addEventListener("keyup", (ev) => { this.key = ""; });
 	}
 
 	consumeKey(k) {
-		if(this.key == k) {
-			this.key = "";
+		if(this.keypress == k) {
+			this.keypress = "";
 			return true;
 		}
 	}
@@ -171,7 +172,7 @@ class Tri {
 		const Wc = triArea(a, b, p);
 		const Wa = triArea(b, c, p);
 		const Wb = triArea(c, a, p);
-		const pInside = Wa > 0 && Wb > 0 && Wc > 0;
+		const pInside = Wa >= 0 && Wb >= 0 && Wc >= 0;
 		if(!pInside) {
 			return false;
 		}
