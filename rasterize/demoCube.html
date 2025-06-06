@@ -7,6 +7,8 @@
 <script src="model.js"></script>
 <script>
 var stop = false;
+var useVec = false;
+var correctPerspective = true;
 
 function forEachPixel(W, H, f) {
     for(var y = 0; y < H; y++) {
@@ -54,7 +56,7 @@ class Texture {
 		const r = this.imageData[off];
 		const g = this.imageData[off+1];
 		const b = this.imageData[off+2];
-		//const a = this.imageData[off+3];
+		const a = this.imageData[off+3]; // unused...
 		return new Vec3(r,g,b)
 	}
 }
@@ -95,10 +97,28 @@ class Camera {
 }
 
 function screen_transform(W) {
+	// note: does not affect z coordinate.
 	return transforms(
 		Mat4.scales(new Vec3(W/2, -W/2, 1.0)),	// positive Y is up, scale X [-1,1] to [-W/2, W/2].
-		Mat4.translate(new Vec3(W/2, W/2, 5)),	// translate X to [0, W].
+		Mat4.translate(new Vec3(W/2, W/2, 0)),	// translate X to [0, W].
 	);
+}
+
+// Area of triangle with vertices a,b,c
+function triArea(a, b, c) {
+	if(useVec) {
+		b = b.vec2();
+		c = c.vec2();
+		const ab_perp = b.sub(a).perp();
+		const ac = c.sub(b);
+		return 0.5 * ab_perp.dot(ac);
+	}
+
+	// ab     = (b.i - a.i, b.j - a.j)
+	// ab_per = (a.j - b.j, b.i - a.i)
+	// ac     = (c.i - a.i, c.j - a.j)
+	// ab_perp dot ac   = (a.j - b.j) * (c.i - a.i) + (b.i - a.i) * (c.j - a.j)
+	return 0.5 * ((a.j - b.j) * (c.i - a.i) + (b.i - a.i) * (c.j - a.j));
 }
 
 class Tri {
@@ -109,19 +129,13 @@ class Tri {
 		this.color = col;
 	}
 
-	// computes perpendiculars to each side based on screen pos.
-	precompute_sides() {
-		// precomputed perpendiculars to each side.
-		const a = this.a.v.scrpos.vec2();
-		const b = this.b.v.scrpos.vec2();
-		const c = this.c.v.scrpos.vec2();
-		this.ABperp = b.sub(a).perp();
-		this.BCperp = c.sub(b).perp();
-		this.CAperp = a.sub(c).perp();
-	}
+	precompute(dt, W, H) {
+		this.visible = this.a.v.visible && this.b.v.visible && this.c.v.visible;
+		if(!this.visible) {
+			return
+		}
 
-	// computes bounding box of screen pos.
-	precompute_bounds() {
+		// bounding box on screen.
 		const a = this.a.v.scrpos;
 		const b = this.b.v.scrpos;
 		const c = this.c.v.scrpos;
@@ -135,15 +149,9 @@ class Tri {
 			Math.max(a.j, b.j, c.j),
 			Math.max(a.k, b.k, c.k),
 		);
-	}
 
-	// precompute sets pre-computed sides and bounds.
-	precompute(dt, W, H) {
-		this.visible = this.a.v.visible && this.b.v.visible && this.c.v.visible;
-		if(this.visible) {
-			this.precompute_bounds();
-			this.precompute_sides();
-		}
+		// area on screen
+		this.area = triArea(a, b, c);
 	}
 
 	// pointInBounds is true if p is in the triangle's screen position's bounding box.
@@ -160,13 +168,10 @@ class Tri {
 		const a = this.a.v.scrpos;
 		const b = this.b.v.scrpos;
 		const c = this.c.v.scrpos;
-		const AP = p.sub(a.vec2());
-		const BP = p.sub(b.vec2());
-		const CP = p.sub(c.vec2());
-		const ABParea = AP.dot(this.ABperp); // * 0.5, but we normalize later...
-		const BCParea = BP.dot(this.BCperp);
-		const CAParea = CP.dot(this.CAperp);
-		const pInside = ABParea > 0 && BCParea > 0 && CAParea > 0;
+		const Wc = triArea(a, b, p);
+		const Wa = triArea(b, c, p);
+		const Wb = triArea(c, a, p);
+		const pInside = Wa > 0 && Wb > 0 && Wc > 0;
 		if(!pInside) {
 			return false;
 		}
@@ -174,17 +179,29 @@ class Tri {
 		const at = this.a.vt;
 		const bt = this.b.vt;
 		const ct = this.c.vt;
-		const bary = new Vec3(BCParea, CAParea, ABParea).scale(1.0 / (BCParea + CAParea + ABParea));
-		const m = new Mat3(
-			at.i/a.k, bt.i/b.k, ct.i/c.k,
-			at.j/a.k, bt.j/b.k, ct.j/c.k,
-			1.0/a.k,  1.0/b.k,  1.0/c.k,
-		);
+		const bary = new Vec3(Wa, Wb, Wc).scale(1.0 / this.area);
 
-		let v = m.mulvec(bary); // interploating (u,v,z) at P from the three corners.
-		v.i = v.i / v.k;
-		v.j = v.j / v.k;
-		v.k = 1.0 / v.k;
+		if(correctPerspective) {
+			const m = new Mat3(
+				at.i/a.k, bt.i/b.k, ct.i/c.k,
+				at.j/a.k, bt.j/b.k, ct.j/c.k,
+				1.0/a.k,  1.0/b.k,  1.0/c.k,
+			);
+
+			let v = m.mulvec(bary); // interploating (u/z, v/z, 1/z) at P from the three corners.
+			v.i = v.i / v.k;
+			v.j = v.j / v.k;
+			v.k = 1.0 / v.k;
+			return v;
+		} else {
+			const m = new Mat3(
+				at.i, bt.i, ct.i,
+				at.j, bt.j, ct.j,
+				a.k,  b.k,  c.k,
+			);
+
+			return m.mulvec(bary); // interploating (u, v, z) at P from the three corners.
+		}
 		return v;
 	}
 }
@@ -242,14 +259,14 @@ class Data {
 				if(inTri !== false && inTri.k < bestDepth) {
 					bestDepth = inTri.k;
 					if(this.plotType == "depth") {
-						const f = 3.0 / inTri.k;
+						const f = 1.0 / inTri.k;
 						color = new Vec3(f, f, f).scale(255);
 					} else if(this.plotType == "uv") {
 						color = uvColor(inTri.i, inTri.j);
 					} else if(this.plotType == "texture") {
 						color = texture.get(inTri.i, inTri.j);
 					} else {
-						color = tri.color.scale(6.0 / inTri.k).scale(255);
+						color = tri.color.scale(1.5 / inTri.k).scale(255);
 					}
 				}
 			}

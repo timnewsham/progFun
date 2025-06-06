@@ -132,6 +132,10 @@ class Vec2 extends Vec {
 	perp() {
 		return new Vec2(-this.j, this.i);
 	}
+
+	vec2() {
+		return this;
+	}
 }
 
 // Vec3 is a 3-dimensional vector.
