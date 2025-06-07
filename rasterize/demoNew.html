@@ -128,6 +128,15 @@ function triArea(a, b, c) {
 	return 0.5 * ((a.j - b.j) * (c.i - a.i) + (b.i - a.i) * (c.j - a.j));
 }
 
+class TriPoint {
+	constructor(tri, uvw) {
+		// TODO: make this class capable of interpolating any triangle property
+		// and take interpolation out of the point-in-triangle function.
+		this.tri = tri;
+		this.uvw = uvw;
+	}
+}
+
 class Tri {
 	constructor(a, b, c, col) {
 		this.a = a;
@@ -199,17 +208,15 @@ class Tri {
 			v.i = v.i / v.k;
 			v.j = v.j / v.k;
 			v.k = 1.0 / v.k;
-			return v;
+			return new TriPoint(this, v);
 		} else {
 			const m = new Mat3(
 				at.i, bt.i, ct.i,
 				at.j, bt.j, ct.j,
 				a.k,  b.k,  c.k,
 			);
-
-			return m.mulvec(bary); // interploating (u, v, z) at P from the three corners.
+			return new TriPoint(this, m.mulvec(bary)); // interploating (u, v, z) at P from the three corners.
 		}
-		return v;
 	}
 }
 
@@ -269,7 +276,7 @@ function randomColor() {
 
 // TrianglesView is a view on the 2D projection of collection of triangles.
 class TrianglesView extends View {
-	constructor(canvasSelector, someModelsHere) {
+	constructor(canvasSelector, model) {
 		super(canvasSelector);
 
 		// TODO: these should be a method of some model container.
@@ -282,19 +289,15 @@ class TrianglesView extends View {
 		this.tris = [];
 		this.plotType = "uv";
 
-		// load all models into this.points and this.tris.
-		const models = Array.from(arguments).slice(1);
-		for(const model of models) {
-			this.points.push(...model.vs);
-			model.fs.forEach(face => {
-				face.forEachTriangle((a,b,c) => {
-					this.tris.push(new Tri(a,b,c, randomColor()));
-				});
+		this.points.push(...model.vs);
+		model.fs.forEach(face => {
+			face.forEachTriangle((a,b,c) => {
+				this.tris.push(new Tri(a,b,c, randomColor()));
 			});
-		}
+		});
 	}
 
-	incrPlotType() {
+	nextPlotType() {
 		const next = {
 			tri: "uv",
 			uv: "depth",
@@ -302,7 +305,6 @@ class TrianglesView extends View {
 			texture: "tri",
 		}
 		this.plotType = next[this.plotType] || "tri";
-		console.log("plot", this.plotType);
 	}
 
 	// TODO: this should be a method of some model container.
@@ -333,8 +335,8 @@ class TrianglesView extends View {
 		var bestTri = false;
 		for(const tri of this.tris) {
 			const inTri = tri.pointIn(p);
-			if(inTri !== false && inTri.k < bestDepth) {
-				bestDepth = inTri.k;
+			if(inTri !== false && inTri.uvw.k < bestDepth) {
+				bestDepth = inTri.uvw.k;
 				bestTri = inTri;
 			}
 		}
@@ -348,25 +350,35 @@ class TrianglesView extends View {
 		}
 
 		if(this.plotType == "depth") {
-			const f = 1.0 / tri.k;
+			const f = 1.0 / tri.uvw.k;
 			return new Vec3(f, f, f).scale(255);
 		} else if(this.plotType == "uv") {
-			return uvColor(tri.i, tri.j).scale(255);
+			return uvColor(tri.uvw.i, tri.uvw.j).scale(255);
 		} else if(this.plotType == "texture") {
-			return texture.get(tri.i, tri.j);
+			return texture.get(tri.uvw.i, tri.uvw.j);
 		} else {
-			return scale_rgb(tri.color, 1 / tri.k).scale(255);
+			return scale_rgb(tri.tri.color, 1 / tri.uvw.k).scale(255);
 		}
 	}
 }
 
 class Controller {
-	constructor(canvasSelector, somoModelsHere) {
-		this.view = new TrianglesView(...arguments);
+	constructor(statusSelector, canvasSelector, model) {
+		this.status = document.querySelector(statusSelector);
+		this.view = new TrianglesView(canvasSelector, model);
 
 		this.run = true;
 		this.user = new UserInput();
 		this.camera = new Camera();
+
+		this.frame = 0;
+		this.reportFrame = 0;
+		this.reportTs = 0;
+		this.rate = 0;
+		this.updateTime = 0;
+		this.drawTime = 0;
+
+		this.updateStatus();
 	}
 
 	draw() {
@@ -376,12 +388,27 @@ class Controller {
 		this.view.draw();
 	}
 
+	updateStatus() {
+		const typ = `draw type: ${this.view.plotType}`;
+		const r = `frame rate: ${this.rate.toFixed(1)}`;
+
+		const tot = this.updateTime + this.drawTime + 0.0001;
+		const percUpdate = 100.0 * this.updateTime / tot;
+		const percDraw = 100.0 * this.drawTime / tot;
+		const percs = `update time: ${percUpdate.toFixed(3)}%\ndraw time: ${percDraw.toFixed(1)}%`;
+
+		this.status.innerText = `${typ}\n${r}\n${percs}`;
+	}
+
 	update() {
 		this.view.yaw += deg(2);
 		this.view.roll += deg(0.1);
 		this.view.pitch += deg(0.2);
 
-		if (this.user.consumeKey("KeyT")) { this.view.incrPlotType(); }
+		if (this.user.consumeKey("KeyT")) {
+			this.view.nextPlotType(); 
+			this.updateStatus();
+		}
 
 		const speed = 0.02;
 		if (this.user.key == "KeyW") { this.camera.move(new Vec3(0, 0, speed)); }; // move forward
@@ -404,11 +431,33 @@ class Controller {
 		if (this.user.key == "KeyK") { this.camera.zoom(1 - zoomSpeed); }; // zoom out
 	}
 
-	animate() {
+	animate(ts) {
+		const t0 = new Date().getTime();
 		this.update();
+		const t1 = new Date().getTime();
 		this.draw();
+		const t2 = new Date().getTime();
+
+		this.frame ++;
+		this.updateTime += t1 - t0;
+		this.drawTime += t2 - t1;
+		const dt = ts - this.reportTs;
+		if(dt > 1000) {
+			const alpha = 0.75;
+			const dFrameDT = (this.frame - this.reportFrame) * 1000.0 / dt;
+			this.rate = (1-alpha)*this.rate + alpha*dFrameDT;
+
+			this.reportFrame = this.frame;
+			this.reportTs = ts;
+
+			this.updateTime *= 1-alpha;
+			this.drawTime *= 1-alpha;
+
+			this.updateStatus();
+		}
+
 		if(this.run) {
-			requestAnimationFrame(() => this.animate());
+			requestAnimationFrame((ts) => this.animate(ts));
 		}
 	}
 }
@@ -420,14 +469,21 @@ const texture = new Texture("https://upload.wikimedia.org/wikipedia/commons/d/de
 var ui;
 
 onload = function() {
-	ui = new Controller("#draw", new Model(cube));
+	ui = new Controller("#status", "#draw", new Model(cube));
 	//ui.run = false;
 	ui.animate();
 }
 </script>
+<style>
+  #draw { position: absolute; left: 0; top: 0; }
+  #status { position: absolute; left: 10; top: 0; z-index: 100; color: yellow; }
+</style>
 </head>
 <body>
+<div id="container">
 <canvas id="draw" width=400 height=400></canvas>
 <canvas id="texture" width=128 height=128 hidden=true></canvas>
+<p id="status"></p>
+</div>
 </body>
 </html>
