@@ -230,7 +230,7 @@ class Tri {
 		}
 
 		const bary = new Vec3(Wa, Wb, Wc).scale(1.0 / this.area);
-		return new TriPoint(this, bary, true);
+		return new TriPoint(this, bary, textureCorrectPerspective);
 	}
 }
 
