@@ -128,12 +128,48 @@ function triArea(a, b, c) {
 	return 0.5 * ((a.j - b.j) * (c.i - a.i) + (b.i - a.i) * (c.j - a.j));
 }
 
+// TriPoint represents a point in a 2D projection of a triangle.
+// It allows any of the triangle properties to be interpolated from the three corners.
 class TriPoint {
-	constructor(tri, uvw) {
-		// TODO: make this class capable of interpolating any triangle property
-		// and take interpolation out of the point-in-triangle function.
+	constructor(tri, bary, correct_persp) {
 		this.tri = tri;
-		this.uvw = uvw;
+		this.bary = bary;
+		this.correct_persp = correct_persp;
+
+		if(this.correct_persp) {
+			this.invABCDepths = new Vec3(
+				1.0 / this.tri.a.v.scrpos.k,
+				1.0 / this.tri.b.v.scrpos.k,
+				1.0 / this.tri.c.v.scrpos.k);
+			this.depth = 1.0 / this.bary.dot(this.invABCDepths);
+		} else {
+			this.depth = this.bary.dot(new Vec3(
+				this.tri.a.v.scrpos.k,
+				this.tri.b.v.scrpos.k,
+				this.tri.c.v.scrpos.k));
+		}
+	}
+
+	interp(v) {
+		if(this.correct_persp) {
+			return this.depth * this.bary.dot(this.invABCDepths.mul(v));
+		} else {
+			return this.bary.dot(v);
+		}
+	}
+
+	// uv returns the texture coordinates at p.
+	uv() {
+		// TODO: dont keep regenerating these u and v vectors, do it once for the triangle.
+		const u = this.interp(new Vec3(
+			this.tri.a.vt.i,
+			this.tri.b.vt.i,
+			this.tri.c.vt.i));
+		const v = this.interp(new Vec3(
+			this.tri.a.vt.j,
+			this.tri.b.vt.j,
+			this.tri.c.vt.j));
+		return new Vec2(u, v);
 	}
 }
 
@@ -176,9 +212,10 @@ class Tri {
 				this.bmin.j <= p.j && p.j <= this.bmax.j);
 	}
 
-	// pointIn is false if p is not in the triangle's screen position,
-	// and true with a Vec3(texture-u, texture-v, pixel-depth) if p is inside the triangle.
-	pointIn(p) {
+	// triPoint is false if p is not in the triangle's screen position,
+	// and a TriPoint if p is inside the triangle. The TriPoint has the depth
+	// and allows interpolating the triangle's other properties at the point.
+	triPoint(p) {
 		if(!this.visible || !this.pointInBounds(p)) { return false; }
 
 		const a = this.a.v.scrpos;
@@ -192,31 +229,8 @@ class Tri {
 			return false;
 		}
 
-		const at = this.a.vt;
-		const bt = this.b.vt;
-		const ct = this.c.vt;
 		const bary = new Vec3(Wa, Wb, Wc).scale(1.0 / this.area);
-
-		if(textureCorrectPerspective) {
-			const m = new Mat3(
-				at.i/a.k, bt.i/b.k, ct.i/c.k,
-				at.j/a.k, bt.j/b.k, ct.j/c.k,
-				1.0/a.k,  1.0/b.k,  1.0/c.k,
-			);
-
-			let v = m.mulvec(bary); // interploating (u/z, v/z, 1/z) at P from the three corners.
-			v.i = v.i / v.k;
-			v.j = v.j / v.k;
-			v.k = 1.0 / v.k;
-			return new TriPoint(this, v);
-		} else {
-			const m = new Mat3(
-				at.i, bt.i, ct.i,
-				at.j, bt.j, ct.j,
-				a.k,  b.k,  c.k,
-			);
-			return new TriPoint(this, m.mulvec(bary)); // interploating (u, v, z) at P from the three corners.
-		}
+		return new TriPoint(this, bary, true);
 	}
 }
 
@@ -328,15 +342,15 @@ class TrianglesView extends View {
 		this.tris.forEach(tri => tri.precompute());
 	}
 
-	// triAt returns the attributes of the closest visible triangle at p.
+	// triAt returns the triangle point for the closest visible triangle at p.
 	// TODO: this should be a method of some model container.
 	triAt(p) {
 		var bestDepth = Number.POSITIVE_INFINITY;
 		var bestTri = false;
 		for(const tri of this.tris) {
-			const inTri = tri.pointIn(p);
-			if(inTri !== false && inTri.uvw.k < bestDepth) {
-				bestDepth = inTri.uvw.k;
+			const inTri = tri.triPoint(p);
+			if(inTri !== false && inTri.depth < bestDepth) {
+				bestDepth = inTri.depth;
 				bestTri = inTri;
 			}
 		}
@@ -344,23 +358,27 @@ class TrianglesView extends View {
 	}
 
 	pixelFunc(p) {
-		const tri = this.triAt(p);
-		if(tri === false) {
+		const trip = this.triAt(p);
+		if(trip === false) {
 			return black.scale(255);
 		}
+		g = trip;
 
 		if(this.plotType == "depth") {
-			const f = 1.0 / tri.uvw.k;
+			const f = 1.0 / trip.depth;
 			return new Vec3(f, f, f).scale(255);
 		} else if(this.plotType == "uv") {
-			return uvColor(tri.uvw.i, tri.uvw.j).scale(255);
+			const uv = trip.uv();
+			return uvColor(uv.i, uv.j).scale(255);
 		} else if(this.plotType == "texture") {
-			return texture.get(tri.uvw.i, tri.uvw.j);
+			const uv = trip.uv();
+			return texture.get(uv.i, uv.j);
 		} else {
-			return scale_rgb(tri.tri.color, 1 / tri.uvw.k).scale(255);
+			return scale_rgb(trip.tri.color, 1.0 / trip.depth).scale(255);
 		}
 	}
 }
+var g;
 
 class Controller {
 	constructor(statusSelector, canvasSelector, model) {

@@ -168,6 +168,11 @@ class Vec3 extends Vec {
 		return this.i*x.i + this.j*x.j + this.k*x.k;
 	}
 
+	// mul computes the pointwise product of this vector and x.
+	mul(x) {
+		return new Vec3(this.i * x.i, this.j*x.j, this.k*x.k);
+	}
+
 	// cross computes the cross product of this vector and x.
 	cross(x) {
 		return new Vec3(
