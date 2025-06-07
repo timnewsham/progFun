@@ -110,7 +110,7 @@ function get_screen_transform(W, H) {
 	// note: does not affect z coordinate.
 	return transforms(
 		Mat4.scales(new Vec3(W/2, -W/2, 1.0)),	// positive Y is up, scale X [-1,1] to [-W/2, W/2].
-		Mat4.translate(new Vec3(W/2, W/2, 0)),	// translate X to [0, W].
+		Mat4.translate(new Vec3(W/2, H/2, 0)),	// translate X to [0, W].
 	);
 }
 
@@ -261,7 +261,7 @@ class View {
 	resize(W, H) {
 		this.canvas.width = W;
 		this.canvas.height = H;
-		onResize();
+		this.onResize();
 	}
 
 	draw() {
@@ -400,12 +400,19 @@ class Controller {
 		this.drawTime = 0;
 		this.showHelp = 0;
 
+		addEventListener("resize", (ev) => this.resizeFull());
+
+		this.resizeFull();
 		this.updateStatus();
+	}
+
+	resizeFull() {
+		this.view.resize(window.innerWidth, window.innerHeight);
 	}
 
 	draw() {
 		const tcam = this.camera.get_transform();
-		const tscr = get_screen_transform(this.view.W);
+		const tscr = get_screen_transform(this.view.W, this.view.H);
 		this.view.proj(tcam, tscr);
 		this.view.draw();
 	}
@@ -424,7 +431,8 @@ class Controller {
 			txt += `\nA / D - move left / right`;
 			txt += `\nQ / Z - move up / down`;
 		} else {
-			txt += `\n\ndraw type: ${this.view.plotType}`;
+			txt += `\n\n${this.view.W}x${this.view.H}`;
+			txt += `\ndraw type: ${this.view.plotType}`;
 			txt += `\nframe rate: ${this.rate.toFixed(1)}`;
 
 			const tot = this.updateTime + this.drawTime + 0.0001;
