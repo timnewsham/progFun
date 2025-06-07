@@ -80,9 +80,12 @@ class UserInput {
 
 class Camera {
 	constructor() {
+		this.reset();
+	}
+
+	reset() {
 		this.t = Mat4.id();
 		this.zoomScale = 1.0;
-
 		this.move(new Vec3(0, 0, -3.0));
 	}
 
@@ -93,7 +96,7 @@ class Camera {
 
 	zoom(f) { this.zoomScale *= f; }
 
-	transform() {
+	get_transform() {
 		const zoom = new Vec4(this.zoomScale, this.zoomScale, 1, 1);
 		return transforms(
 			this.t,
@@ -103,7 +106,7 @@ class Camera {
 	}
 }
 
-function screen_transform(W, H) {
+function get_screen_transform(W, H) {
 	// note: does not affect z coordinate.
 	return transforms(
 		Mat4.scales(new Vec3(W/2, -W/2, 1.0)),	// positive Y is up, scale X [-1,1] to [-W/2, W/2].
@@ -395,27 +398,41 @@ class Controller {
 		this.rate = 0;
 		this.updateTime = 0;
 		this.drawTime = 0;
+		this.showHelp = 0;
 
 		this.updateStatus();
 	}
 
 	draw() {
-		const tcam = this.camera.transform();
-		const tscr = screen_transform(this.view.W);
+		const tcam = this.camera.get_transform();
+		const tscr = get_screen_transform(this.view.W);
 		this.view.proj(tcam, tscr);
 		this.view.draw();
 	}
 
 	updateStatus() {
-		const typ = `draw type: ${this.view.plotType}`;
-		const r = `frame rate: ${this.rate.toFixed(1)}`;
+		var txt = `H - toggle help`;
+		if(this.showHelp) {
+			txt += `\nT - change plot type`;
+			txt += `\n`;
+			txt += `\nCamera:`;
+			txt += `\nR - reset`;
+			txt += `\nJ / L - turn left / right`;
+			txt += `\nI / Comma - tilt up / down`;
+			txt += `\nU / O - roll left / right`;
+			txt += `\nW / X - move forward / backward`;
+			txt += `\nA / D - move left / right`;
+			txt += `\nQ / Z - move up / down`;
+		} else {
+			txt += `\n\ndraw type: ${this.view.plotType}`;
+			txt += `\nframe rate: ${this.rate.toFixed(1)}`;
 
-		const tot = this.updateTime + this.drawTime + 0.0001;
-		const percUpdate = 100.0 * this.updateTime / tot;
-		const percDraw = 100.0 * this.drawTime / tot;
-		const percs = `update time: ${percUpdate.toFixed(3)}%\ndraw time: ${percDraw.toFixed(1)}%`;
-
-		this.status.innerText = `${typ}\n${r}\n${percs}`;
+			const tot = this.updateTime + this.drawTime + 0.0001;
+			const percUpdate = 100.0 * this.updateTime / tot;
+			const percDraw = 100.0 * this.drawTime / tot;
+			txt += `\nupdate time: ${percUpdate.toFixed(3)}%\ndraw time: ${percDraw.toFixed(1)}%`;
+		}
+		this.status.innerText = txt;
 	}
 
 	update() {
@@ -423,10 +440,17 @@ class Controller {
 		this.view.roll += deg(0.1);
 		this.view.pitch += deg(0.2);
 
+		if (this.user.consumeKey("KeyH")) {
+			this.showHelp = !this.showHelp;
+			this.updateStatus();
+		};
+
 		if (this.user.consumeKey("KeyT")) {
 			this.view.nextPlotType(); 
 			this.updateStatus();
 		}
+
+		if (this.user.key == "KeyR") { this.camera.reset(); };
 
 		const speed = 0.02;
 		if (this.user.key == "KeyW") { this.camera.move(new Vec3(0, 0, speed)); }; // move forward
