@@ -9,7 +9,7 @@
 var triAreaUseVec = false;
 var textureCorrectPerspective = true;
 
-const black = new Vec4(0, 0, 0, 1.0);
+const black = new Vec4(0, 0, 0);
 
 // uvColor returns color at u,v for a debug texture in RGBA [0..1].
 function uvColor(u, v) {
@@ -18,7 +18,7 @@ function uvColor(u, v) {
 	if((ux + vx) % 2 == 1) {
 		return black;
 	}
-	return new Vec4(u, v, 0, 1);
+	return new Vec3(u, v, 0);
 }
 
 // scale RGB but not A.
@@ -161,18 +161,29 @@ class TriPoint {
 		}
 	}
 
+	interp2(va, vb, vc) {
+		return new Vec2(
+			this.interp(new Vec3(va.i, vb.i, vc.i)),
+			this.interp(new Vec3(va.j, vb.j, vc.j)));
+	}
+
 	// uv returns the texture coordinates at p.
 	uv() {
 		// TODO: dont keep regenerating these u and v vectors, do it once for the triangle.
-		const u = this.interp(new Vec3(
-			this.tri.a.vt.i,
-			this.tri.b.vt.i,
-			this.tri.c.vt.i));
-		const v = this.interp(new Vec3(
-			this.tri.a.vt.j,
-			this.tri.b.vt.j,
-			this.tri.c.vt.j));
-		return new Vec2(u, v);
+		return this.interp2(this.tri.a.vt, this.tri.b.vt, this.tri.c.vt);
+	}
+
+	interp3(va, vb, vc) {
+		return new Vec3(
+			this.interp(new Vec3(va.i, vb.i, vc.i)),
+			this.interp(new Vec3(va.j, vb.j, vc.j)),
+			this.interp(new Vec3(va.k, vb.k, vc.k)));
+	}
+
+	// norm returns the normal at p.
+	norm() {
+		// TODO: dont keep regenerating these u and v vectors, do it once for the triangle.
+		return this.interp3(this.tri.a.vn, this.tri.b.vn, this.tri.c.vn);
 	}
 }
 
@@ -302,10 +313,17 @@ class TrianglesView extends View {
 		this.roll = 0;
 		this.trans = new Vec3(0,0,0);
 
-		this.points = [];
-		this.tris = [];
 		this.plotType = "uv";
 
+		this.sun = new Vec3(1, 1, 1).norm();
+
+		this.load(model);
+	}
+
+	load(model) {
+		this.model = model;
+		this.points = [];
+		this.tris = [];
 		this.points.push(...model.vs);
 		model.fs.forEach(face => {
 			face.forEachTriangle((a,b,c) => {
@@ -319,7 +337,8 @@ class TrianglesView extends View {
 			tri: "uv",
 			uv: "depth",
 			depth: "texture",
-			texture: "tri",
+			texture: "norm",
+			norm: "tri",
 		}
 		this.plotType = next[this.plotType] || "tri";
 	}
@@ -376,6 +395,14 @@ class TrianglesView extends View {
 		} else if(this.plotType == "texture") {
 			const uv = trip.uv();
 			return texture.get(uv.i, uv.j);
+		} else if(this.plotType == "norm") {
+			// TODO: guh, we need to transform the normals too!
+			const uv = trip.uv();
+			const norm = trip.norm();
+			const bright = 0.5 + 0.5 * norm.dot(this.sun);
+			const fade = 1.0 / trip.depth;
+			const texture = uvColor(uv.i, uv.j);
+			return texture.scale(5 * bright * fade).scale(255);
 		} else {
 			return scale_rgb(trip.tri.color, 1.0 / trip.depth).scale(255);
 		}
@@ -433,7 +460,7 @@ class Controller {
 		} else {
 			txt += `\n\n${this.view.W}x${this.view.H}`;
 			txt += `\ndraw type: ${this.view.plotType}`;
-			txt += `\nframe rate: ${this.rate.toFixed(1)}`;
+			txt += `\nframe rate: ${this.rate.toFixed(2)}`;
 
 			const tot = this.updateTime + this.drawTime + 0.0001;
 			const percUpdate = 100.0 * this.updateTime / tot;
@@ -520,6 +547,9 @@ var ui;
 
 onload = function() {
 	ui = new Controller("#status", "#draw", new Model(cube));
+	//ui = new Controller("#status", "#draw", new Model(suzanne));
+	ui.view.plotType = "norm";
+	ui.view.yaw = deg(150);
 	//ui.run = false;
 	ui.animate();
 }
