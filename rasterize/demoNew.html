@@ -9,7 +9,8 @@
 var triAreaUseVec = false;
 var textureCorrectPerspective = true;
 
-const black = new Vec4(0, 0, 0);
+const black = new Vec3(0, 0, 0);
+const white = new Vec3(1, 1, 1);
 
 // uvColor returns color at u,v for a debug texture in RGBA [0..1].
 function uvColor(u, v) {
@@ -187,6 +188,29 @@ class TriPoint {
 	}
 }
 
+class BoundingBox2D {
+	constructor() {
+		const arg0 = arguments[0];
+		this.min = new Vec2(arg0.i, arg0.j);
+		this.max = new Vec2(arg0.i, arg0.j);
+		for(const arg of arguments) {
+			this.min.i = Math.min(this.min.i, arg.i);
+			this.min.j = Math.min(this.min.j, arg.j);
+			this.max.i = Math.max(this.max.i, arg.i);
+			this.max.j = Math.max(this.max.j, arg.j);
+		}
+	}
+
+	hasPoint(p) {
+		return (this.min.i <= p.i && p.i <= this.max.i &&
+				this.min.j <= p.j && p.j <= this.max.j);
+	}
+
+	hasBox(b) {
+		return this.hasPoint(b.min) && this.hasPoint(b.max);
+	}
+}
+
 class Tri {
 	constructor(a, b, c, col) {
 		this.a = a;
@@ -205,32 +229,17 @@ class Tri {
 		const a = this.a.v.scrpos;
 		const b = this.b.v.scrpos;
 		const c = this.c.v.scrpos;
-		this.bmin = new Vec3(
-			Math.min(a.i, b.i, c.i),
-			Math.min(a.j, b.j, c.j),
-			Math.min(a.k, b.k, c.k),
-		);
-		this.bmax = new Vec3(
-			Math.max(a.i, b.i, c.i),
-			Math.max(a.j, b.j, c.j),
-			Math.max(a.k, b.k, c.k),
-		);
+		this.bbox = new BoundingBox2D(a, b, c);
 
 		// area on screen
 		this.area = triArea(a, b, c);
-	}
-
-	// pointInBounds is true if p is in the triangle's screen position's bounding box.
-	pointInBounds(p) {
-		return (this.bmin.i <= p.i && p.i <= this.bmax.i &&
-				this.bmin.j <= p.j && p.j <= this.bmax.j);
 	}
 
 	// triPoint is false if p is not in the triangle's screen position,
 	// and a TriPoint if p is inside the triangle. The TriPoint has the depth
 	// and allows interpolating the triangle's other properties at the point.
 	triPoint(p) {
-		if(!this.visible || !this.pointInBounds(p)) { return false; }
+		if(!this.visible || !this.bbox.hasPoint(p)) { return false; }
 
 		const a = this.a.v.scrpos;
 		const b = this.b.v.scrpos;
@@ -302,6 +311,97 @@ function randomColor() {
 	return new Vec4(Math.random(), Math.random(), Math.random(), 1.0);
 }
 
+// TriTree is a tree of triangles. Each level of the tree has a bounding box of
+// the visible region of the display and all triangles in that bounding box.
+// The tree is subdivided into subregions to reduce the number of triangle
+// intersections that need to be computed.  Each subregion is a quarter of the
+// parent's region. Triangles are put into subregions if they fit entirely in
+// that subregion, otherwise they're kept in the parent.
+class TriTree {
+	constructor(tris, bbox) {
+		this.bbox = bbox;
+		this.tris = tris;
+		this.kids = [];
+	}
+
+	static build(tris, W, H) {
+		const tree = new TriTree(tris, new BoundingBox2D(new Vec2(0,0), new Vec2(W, H)));
+		tree.subdivide();
+		return tree;
+	}
+
+	// Minimum number of triangles to consider subdividing.
+	static MinTris = 3;
+
+	subdivide() {
+		if(this.tris.length < this.MinTris) { return; }
+		//console.log("subdivide", this.bbox.min, this.bbox.max);
+
+		// Compute four subregions.
+		const min = this.bbox.min;
+		const max = this.bbox.max;
+		const mid = max.sub(min).scale(0.5).add(min);
+		const box1 = new BoundingBox2D(min, mid);
+		const box2 = new BoundingBox2D(
+			new Vec2(mid.i, min.i),
+			new Vec2(max.i, mid.j));
+		const box3 = new BoundingBox2D(
+			new Vec2(min.i, mid.j),
+			new Vec2(mid.i, max.j));
+		const box4 = new BoundingBox2D(mid, max);
+
+		// put tris into kids if they fit, otherwise keep it in parent.
+		var kids = [
+			new TriTree([], box1),
+			new TriTree([], box2),
+			new TriTree([], box3),
+			new TriTree([], box4),
+		];
+		var keep = [];
+		for(const tri of this.tris) {
+			var used = false;
+			for(const kid of kids) {
+				if(kid.bbox.hasBox(tri.bbox)) {
+					kid.tris.push(tri);
+					used = true;
+					break;
+				}
+			}
+			if(!used) {
+				keep.push(tri);
+			}
+		}
+
+		// Don't use this subdivision if it didn't help.
+		if(!(keep.length < this.tris.length)) {
+			return;
+		}
+
+		// Use these subdivisions, and recursively try to subdivide them.
+		this.kids = kids;
+		this.tris = keep;
+		for(const kid of this.kids) {
+			kid.subdivide();
+		}
+	}
+
+	// call f for each tri intersecting point p.
+	forEachTriAt(p, f) {
+		// stop if its not in our bounding box.
+		if(!this.bbox.hasPoint(p)) return;
+
+		// Iterate all triangles we have.
+		for(const tri of this.tris) {
+			f(tri);
+		}
+
+		// And iterate all triangles our kids have.
+		for(const kid of this.kids) {
+			kid.forEachTriAt(p, f);
+		}
+	}
+}
+
 // TrianglesView is a view on the 2D projection of collection of triangles.
 class TrianglesView extends View {
 	constructor(canvasSelector, model) {
@@ -362,6 +462,9 @@ class TrianglesView extends View {
 		});
 
 		this.tris.forEach(tri => tri.precompute());
+
+		// put triangles into a tree.
+		this.tree = TriTree.build(this.tris, this.W, this.H);
 	}
 
 	// triAt returns the triangle point for the closest visible triangle at p.
@@ -369,13 +472,13 @@ class TrianglesView extends View {
 	triAt(p) {
 		var bestDepth = Number.POSITIVE_INFINITY;
 		var bestTri = false;
-		for(const tri of this.tris) {
+		this.tree.forEachTriAt(p, (tri) => {
 			const inTri = tri.triPoint(p);
 			if(inTri !== false && inTri.depth < bestDepth) {
 				bestDepth = inTri.depth;
 				bestTri = inTri;
 			}
-		}
+		});
 		return bestTri;
 	}
 
@@ -384,7 +487,6 @@ class TrianglesView extends View {
 		if(trip === false) {
 			return black.scale(255);
 		}
-		g = trip;
 
 		if(this.plotType == "depth") {
 			const f = 1.0 / trip.depth;
@@ -408,7 +510,6 @@ class TrianglesView extends View {
 		}
 	}
 }
-var g;
 
 class Controller {
 	constructor(statusSelector, canvasSelector, model) {
@@ -437,10 +538,13 @@ class Controller {
 		this.view.resize(window.innerWidth, window.innerHeight);
 	}
 
-	draw() {
+	project() {
 		const tcam = this.camera.get_transform();
 		const tscr = get_screen_transform(this.view.W, this.view.H);
 		this.view.proj(tcam, tscr);
+	}
+
+	draw() {
 		this.view.draw();
 	}
 
@@ -458,6 +562,8 @@ class Controller {
 			txt += `\nA / D - move left / right`;
 			txt += `\nQ / Z - move up / down`;
 		} else {
+			// TODO: some metrics on how well the tree is performing.
+
 			txt += `\n\n${this.view.W}x${this.view.H}`;
 			txt += `\ndraw type: ${this.view.plotType}`;
 			txt += `\nframe rate: ${this.rate.toFixed(2)}`;
@@ -511,6 +617,7 @@ class Controller {
 	animate(ts) {
 		const t0 = new Date().getTime();
 		this.update();
+		this.project();
 		const t1 = new Date().getTime();
 		this.draw();
 		const t2 = new Date().getTime();
@@ -546,8 +653,8 @@ const texture = new Texture("https://upload.wikimedia.org/wikipedia/commons/d/de
 var ui;
 
 onload = function() {
-	ui = new Controller("#status", "#draw", new Model(cube));
-	//ui = new Controller("#status", "#draw", new Model(suzanne));
+	//ui = new Controller("#status", "#draw", new Model(cube));
+	ui = new Controller("#status", "#draw", new Model(suzanne));
 	ui.view.plotType = "norm";
 	ui.view.yaw = deg(150);
 	//ui.run = false;
