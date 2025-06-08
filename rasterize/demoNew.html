@@ -11,6 +11,7 @@ var textureCorrectPerspective = true;
 
 const black = new Vec3(0, 0, 0);
 const white = new Vec3(1, 1, 1);
+const zero3 = new Vec3(0, 0, 0);
 
 // uvColor returns color at u,v for a debug texture in RGBA [0..1].
 function uvColor(u, v) {
@@ -188,7 +189,7 @@ class TriPoint {
 	}
 }
 
-class BoundingBox2D {
+class BBox2 {
 	constructor() {
 		const arg0 = arguments[0];
 		this.min = new Vec2(arg0.i, arg0.j);
@@ -208,6 +209,25 @@ class BoundingBox2D {
 
 	hasBox(b) {
 		return this.hasPoint(b.min) && this.hasPoint(b.max);
+	}
+
+	intersect(b) {
+		const min = new Vec2(
+			Math.max(this.min.i, b.min.i),
+			Math.max(this.min.j, b.min.j));
+		const max = new Vec2(
+			Math.min(this.max.i, b.max.i),
+			Math.min(this.max.j, b.max.j));
+		return new BBox2(min, max);
+	}
+
+	area() {
+		const d = this.max.sub(this.min);
+		return d.i * d.j;
+	}
+
+	overlapsBox(b) {
+		return this.intersect(b).area() > 0;
 	}
 }
 
@@ -229,7 +249,7 @@ class Tri {
 		const a = this.a.v.scrpos;
 		const b = this.b.v.scrpos;
 		const c = this.c.v.scrpos;
-		this.bbox = new BoundingBox2D(a, b, c);
+		this.bbox = new BBox2(a, b, c);
 
 		// area on screen
 		this.area = triArea(a, b, c);
@@ -325,7 +345,16 @@ class TriTree {
 	}
 
 	static build(tris, W, H) {
-		const tree = new TriTree(tris, new BoundingBox2D(new Vec2(0,0), new Vec2(W, H)));
+		// TODO: this is bogus. we need to clip all triangles to the visible region before
+		// we do this, and then we dont need an overlaps test, just a fully-fits test.
+		// The reason is that we should always be able to put triangles into subregions if
+		// their visible part is fully in that subregion, even if their off-screen part is
+		// not fully in that region.. so.. we have to clip first...
+
+		// keep triangles that are visible even if they only partially fit the screen.
+		const bbox =  new BBox2(new Vec2(0,0), new Vec2(W, H));
+		const visibleTris = tris.filter((tri) => tri.visible && bbox.overlapsBox(tri.bbox));
+		const tree = new TriTree(visibleTris, bbox);
 		tree.subdivide();
 		return tree;
 	}
@@ -341,16 +370,16 @@ class TriTree {
 		const min = this.bbox.min;
 		const max = this.bbox.max;
 		const mid = max.sub(min).scale(0.5).add(min);
-		const box1 = new BoundingBox2D(min, mid);
-		const box2 = new BoundingBox2D(
+		const box1 = new BBox2(min, mid);
+		const box2 = new BBox2(
 			new Vec2(mid.i, min.i),
 			new Vec2(max.i, mid.j));
-		const box3 = new BoundingBox2D(
+		const box3 = new BBox2(
 			new Vec2(min.i, mid.j),
 			new Vec2(mid.i, max.j));
-		const box4 = new BoundingBox2D(mid, max);
+		const box4 = new BBox2(mid, max);
 
-		// put tris into kids if they fit, otherwise keep it in parent.
+		// put tris into kids if they fully fit, otherwise keep it in parent.
 		var kids = [
 			new TriTree([], box1),
 			new TriTree([], box2),
@@ -415,7 +444,7 @@ class TrianglesView extends View {
 
 		this.plotType = "uv";
 
-		this.sun = new Vec3(1, 1, 1).norm();
+		this.sun = new Vec3(1, 1, -1).norm();
 
 		this.load(model);
 	}
@@ -444,20 +473,35 @@ class TrianglesView extends View {
 		this.plotType = next[this.plotType] || "tri";
 	}
 
+	// pointToCam returns a point in the camera's coordinate system.
+	pointToCam(p) {
+		return this.transWithCam.mulvec(p.vec4());
+	}
+
+	normToCam(n) {
+		// transform n to camera coords, then subtract off the zero vec and normalize.
+		// TODO: consider baking the subtract camZero into a matrix.
+		return this.pointToCam(n).sub(this.camZero).vec3().norm();
+	}
+
 	// TODO: this should be a method of some model container.
 	proj(tcam, tscr) {
-		const transWithCam = transforms(
+		this.transWithCam = transforms(
 			Mat4.yaw(this.yaw),
 			Mat4.roll(this.roll),
 			Mat4.pitch(this.pitch),
 			Mat4.translate(this.trans),
 			tcam,
 		);
+
+		// Zero in camera's coordinates.
+		this.camZero = this.pointToCam(zero3);
+
 		this.points.forEach(p => {
-			const campos = transWithCam.mulvec(p.vec4());
-			p.visible = campos.w > 0.5;
+			const camPos = this.pointToCam(p);
+			p.visible = camPos.w > 0.5;
 			if(p.visible) {
-				p.projpos = campos.hvec4();
+				p.projpos = camPos.hvec4();
 				p.scrpos = tscr.mulvec(p.projpos);
 			}
 		});
@@ -501,7 +545,7 @@ class TrianglesView extends View {
 		} else if(this.plotType == "norm") {
 			// TODO: guh, we need to transform the normals too!
 			const uv = trip.uv();
-			const norm = trip.norm();
+			const norm = this.normToCam(trip.norm());
 			const bright = 0.5 + 0.5 * norm.dot(this.sun);
 			const fade = 1.0 / trip.depth;
 			const tcolor = uvColor(uv.i, uv.j);
@@ -509,7 +553,7 @@ class TrianglesView extends View {
 		} else if(this.plotType == "texturenorm") {
 			// TODO: guh, we need to transform the normals too!
 			const uv = trip.uv();
-			const norm = trip.norm();
+			const norm = this.normToCam(trip.norm());
 			const bright = 0.5 + 0.5 * norm.dot(this.sun);
 			const fade = 1.0 / trip.depth;
 			const tcolor = texture.get(uv.i, uv.j);
