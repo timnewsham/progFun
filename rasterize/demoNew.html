@@ -437,7 +437,8 @@ class TrianglesView extends View {
 			tri: "uv",
 			uv: "depth",
 			depth: "texture",
-			texture: "norm",
+			texture: "texturenorm",
+			texturenorm: "norm",
 			norm: "tri",
 		}
 		this.plotType = next[this.plotType] || "tri";
@@ -503,7 +504,14 @@ class TrianglesView extends View {
 			const norm = trip.norm();
 			const bright = 0.5 + 0.5 * norm.dot(this.sun);
 			const fade = 1.0 / trip.depth;
-			//const tcolor = uvColor(uv.i, uv.j);
+			const tcolor = uvColor(uv.i, uv.j);
+			return tcolor.scale(5 * bright * fade).scale(255);
+		} else if(this.plotType == "texturenorm") {
+			// TODO: guh, we need to transform the normals too!
+			const uv = trip.uv();
+			const norm = trip.norm();
+			const bright = 0.5 + 0.5 * norm.dot(this.sun);
+			const fade = 1.0 / trip.depth;
 			const tcolor = texture.get(uv.i, uv.j);
 			return tcolor.scale(5 * bright * fade).scale(255);
 		} else {
@@ -656,7 +664,7 @@ var ui;
 onload = function() {
 	//ui = new Controller("#status", "#draw", new Model(cube));
 	ui = new Controller("#status", "#draw", new Model(suzanne));
-	ui.view.plotType = "norm";
+	ui.view.plotType = "texturenorm";
 	ui.view.yaw = deg(150);
 	//ui.run = false;
 	ui.animate();
