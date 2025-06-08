@@ -59,7 +59,7 @@ class Texture {
 		const g = this.imageData[off+1];
 		const b = this.imageData[off+2];
 		const a = this.imageData[off+3];
-		return new Vec4(r,g,b,a);
+		return new Vec3(r,g,b).scale(1/255.0);
 	}
 }
 
@@ -496,15 +496,16 @@ class TrianglesView extends View {
 			return uvColor(uv.i, uv.j).scale(255);
 		} else if(this.plotType == "texture") {
 			const uv = trip.uv();
-			return texture.get(uv.i, uv.j);
+			return texture.get(uv.i, uv.j).scale(255);
 		} else if(this.plotType == "norm") {
 			// TODO: guh, we need to transform the normals too!
 			const uv = trip.uv();
 			const norm = trip.norm();
 			const bright = 0.5 + 0.5 * norm.dot(this.sun);
 			const fade = 1.0 / trip.depth;
-			const texture = uvColor(uv.i, uv.j);
-			return texture.scale(5 * bright * fade).scale(255);
+			//const tcolor = uvColor(uv.i, uv.j);
+			const tcolor = texture.get(uv.i, uv.j);
+			return tcolor.scale(5 * bright * fade).scale(255);
 		} else {
 			return scale_rgb(trip.tri.color, 1.0 / trip.depth).scale(255);
 		}
