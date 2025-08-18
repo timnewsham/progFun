@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="engine.js"></script>
+<script>
+
+// text returns text to display at time t for engine e.
+function text(e, t) {
+	return "hello world";
+}
+
+// color returns a color for each pixel position x,y in range 0..1, and time t in seconds.
+function color(x, y, t) {
+	return black;
+}
+
+var e;
+onload = function() { e = new Engine("#status", "#draw"); }
+</script>
+<style>
+  #draw { position: absolute; left: 0; top: 0; }
+  #status { position: absolute; left: 10; top: 0; z-index: 100; color: yellow; }
+</style>
+</head>
+<body>
+<div id="container">
+<canvas id="draw" width=400 height=400></canvas>
+<p id="status"></p>
+</div>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="engine.js"></script>
+<script>
+
+// text returns text to display at time t for engine e.
+function text(e, t) {
+    var txt = `time: ${t.toFixed(2)} sec`;
+    txt += `\nframe: ${e.frame}`;
+    if(t > 0) {
+        const rate = e.frame / t;
+        txt += `\nrate: ${rate.toFixed(2)} frames/sec`; 
+    }
+    return txt;
+}
+    
+// color returns a color for each pixel position x,y in range 0..1, and time t in seconds.
+function color(x, y, t) {
+	if(x == 0 || y == 0 || x == 1 || y == 1) {
+		return black;
+	}
+    
+    const xx = x - 0.5;
+    const yy = y - 0.5;
+    const d = Math.sqrt(xx*xx + yy*yy);
+
+    const rad = 0.1 + 0.1 * (sin1(t / 3.0) + 1.0);
+    if (d < rad) {
+        //return black;
+        return lerpV(y, red, blue);
+    }
+    return avgV(lerpV(x, blue, red), lerpV(y, black, white));
+}
+
+var e;
+onload = function() { e = new Engine("#status", "#draw"); }
+</script>
+<style>
+  #draw { position: absolute; left: 0; top: 0; }
+  #status { position: absolute; left: 10; top: 0; z-index: 100; color: yellow; }
+</style>
+</head>
+<body>
+<div id="container">
+<canvas id="draw" width=400 height=400></canvas>
+<p id="status"></p>
+</div>
+</body>
+</html>
