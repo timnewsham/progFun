@@ -39,3 +39,7 @@ function color(x, y, t) {
     return avgV(lerpV(x, blue, red), lerpV(y, black, white));
 }
 ```
+
+## Load
+
+You can use `load('tim.js')` from the JS console to load in replacement functions dynamically.

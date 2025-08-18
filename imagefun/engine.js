@@ -169,6 +169,26 @@ class Vec3 {
 	}
 }
 
+// load a javascript file. Ex. `load("tim.js");`.
+// Useful for dynamically replacing text() and color() functions.
+load = function(fn) {
+	const selector = "#loadedJsSrc";
+	const oldJs = document.querySelector(selector);
+	if(oldJs !== null) {
+		oldJS.remove();
+		console.log("removed", oldJs);
+	}
+
+	const newJs = document.createElement('script');
+	newJs.id = selector;
+	newJs.src = fn;
+	newJs.async = true;
+	newJs.onload = () => {
+		console.log("loaded", newJs);
+	};
+	document.body.appendChild(newJs);
+}
+
 const black = new Vec3(0, 0, 0);
 const white = new Vec3(1, 1, 1);
 const red = new Vec3(1, 0, 0);
