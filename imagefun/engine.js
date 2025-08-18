@@ -172,11 +172,11 @@ class Vec3 {
 // load a javascript file. Ex. `load("tim.js");`.
 // Useful for dynamically replacing text() and color() functions.
 load = function(fn) {
-	const selector = "#loadedJsSrc";
-	const oldJs = document.querySelector(selector);
-	if(oldJs !== null) {
-		oldJS.remove();
+	const selector = "loadedJsSrc";
+	const oldJs = document.querySelector('#' + selector);
+	if(oldJs != null) {
 		console.log("removed", oldJs);
+		oldJs.remove();
 	}
 
 	const newJs = document.createElement('script');

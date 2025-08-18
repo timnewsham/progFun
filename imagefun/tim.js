@@ -1,6 +1,6 @@
 // text returns text to display at time t for engine e.
 function text(e, t) {
-	return "hello world";
+	return "Chess Board";
 }
 
 function int(x) {
