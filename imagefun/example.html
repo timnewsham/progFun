@@ -10,24 +10,23 @@ function text(e, t) {
     txt += `\nframe: ${e.frame}`;
     if(t > 0) {
         const rate = e.frame / t;
-        txt += `\nrate: ${rate.toFixed(2)} frames/sec`; 
+        txt += `\nrate: ${rate.toFixed(2)} frames/sec`;
     }
     return txt;
 }
-    
+
 // color returns a color for each pixel position x,y in range 0..1, and time t in seconds.
 function color(x, y, t) {
 	if(x == 0 || y == 0 || x == 1 || y == 1) {
 		return black;
 	}
-    
+
     const xx = x - 0.5;
     const yy = y - 0.5;
     const d = Math.sqrt(xx*xx + yy*yy);
 
     const rad = 0.1 + 0.1 * (sin1(t / 3.0) + 1.0);
     if (d < rad) {
-        //return black;
         return lerpV(y, red, blue);
     }
     return avgV(lerpV(x, blue, red), lerpV(y, black, white));

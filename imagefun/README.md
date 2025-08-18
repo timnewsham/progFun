@@ -34,7 +34,6 @@ function color(x, y, t) {
 
     const rad = 0.1 + 0.1 * (sin1(t / 3.0) + 1.0);
     if (d < rad) {
-        //return black;
         return lerpV(y, red, blue);
     }
     return avgV(lerpV(x, blue, red), lerpV(y, black, white));
