@@ -23,7 +23,7 @@ function text(e, t) {
 }
 
 // color returns a color for each pixel position x,y in range 0..1, and time t in seconds.
-function color(x, y, t) {
+function color(e, x, y, t) {
 	if(x == 0 || y == 0 || x == 1 || y == 1) {
 		return black;
 	}

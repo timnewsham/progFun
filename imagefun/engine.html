@@ -10,22 +10,27 @@ function text(e, t) {
 }
 
 // color returns a color for each pixel position x,y in range 0..1, and time t in seconds.
-function color(x, y, t) {
+function color(e, x, y, t) {
 	return black;
 }
 
 var e;
-onload = function() { e = new Engine("#status", "#draw"); }
+onload = function() { e = new Engine("#status", "#draw", "#slider1", "#slider2", "#slider3"); }
 </script>
 <style>
-  #draw { position: absolute; left: 0; top: 0; }
-  #status { position: absolute; left: 10; top: 0; z-index: 100; color: yellow; }
+  #container { position: relative; }
+  #draw { position: absolute; left: 0; top: 0; z-index: 1; }
+  #status { position: absolute; left: 10px; top: 0; z-index: 2; color: yellow; }
+  #slider1, #slider2, #slider3 { width: 40%; }
 </style>
 </head>
 <body>
+<input type="range" id="slider1" min="0", max="100" value="0"></input><br>
+<input type="range" id="slider2" min="0", max="100" value="0"></input><br>
+<input type="range" id="slider3" min="0", max="100" value="0"></input><br>
 <div id="container">
-<canvas id="draw" width=400 height=400></canvas>
-<p id="status"></p>
+  <canvas id="draw" width=400 height=400></canvas>
+  <p id="status"></p>
 </div>
 </body>
 </html>

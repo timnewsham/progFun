@@ -1,8 +1,16 @@
 class Engine {
-	constructor(statusSelector, canvasSelector) {
+	constructor(statusSelector, canvasSelector, ...sliders) {
 		this.frame = 0;
 		this.status = document.querySelector(statusSelector);
     	this.canvas = document.querySelector(canvasSelector);
+
+		this.sliders = sliders.map((slider) => 0);
+		for (let idx = 0; idx < sliders.length; idx++) {
+			const sel = sliders[idx];
+			const el = document.querySelector(sel);
+			el.addEventListener("input", (ev) => { this.sliders[idx] = ev.target.value / 100.0; });
+		}
+
 		//addEventListener("resize", (ev) => this.resizeFull);
 		this.resize(this.canvas.width, this.canvas.height);
 		this.animate(0);
@@ -30,7 +38,7 @@ class Engine {
 		var off = 0;
     	for(var y = 0; y < this.H; y++) {
         	for(var x = 0; x < this.W; x++) {
-            	const col = color(x * WS, y * HS, ts);
+				const col = color(this, x * WS, y * HS, ts);
 				pixelData[off++] = colorscale(col.i);
 				pixelData[off++] = colorscale(col.j);
 				pixelData[off++] = colorscale(col.k);
