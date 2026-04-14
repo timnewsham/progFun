@@ -114,13 +114,9 @@ example = Eqns(
 )
 
 def auto(orig):
-    guess_lhs = [5 + n for n in range(orig.eqn[0].cnt())]
-    guess_rhs = orig.applies_lhs(*guess_lhs)
-
     eqns = orig.copy()
     print("original problem to solve")
     print(eqns)
-    eqns.verify(guess_lhs, guess_rhs)
 
     # take care of the lower triangle
     for n in range(eqns.cnt()):
@@ -149,8 +145,6 @@ def auto(orig):
         for m in range(n-1, -1, -1):
             eqns.elim(m, n)
 
-    print("verify the inversion")
-    eqns.verify(guess_lhs, guess_rhs)
     return eqns
 
 if __name__ == '__main__':
