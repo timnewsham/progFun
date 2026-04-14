@@ -4,11 +4,12 @@
 #
 
 class Eqn:
-    def __init__(self, *vals):
-        assert len(vals) > 1
-        self.vals = vals
+    def __init__(self, coeffs, eq):
+        assert len(coeffs) > 0
+        self.coeffs = coeffs
+        self.eq = eq
     def cnt(self):
-        return len(self.vals) - 1
+        return len(self.coeffs)
     def __str__(self):
         def param(n, coeef):
             if coeef == 0:
@@ -17,35 +18,27 @@ class Eqn:
                 return f" {coeef:3.1f} x{n:d}"
             else:
                 return f"{coeef:3.1f} x{n:d}"
-        coefs = self.vals[:-1]
-        eq = self.vals[-1]
-        lhs = ' + '.join(param(n, coeff) for n, coeff in enumerate(coefs))
-        rhs = f"{eq:.2f}"
-        return f'{lhs} = {eq:.1f}'
+        lhs = ' + '.join(param(n, coeff) for n, coeff in enumerate(self.coeffs))
+        return f'{lhs} = {self.eq:.1f}'
     def sstr(self):
         # short string
-        coefs = self.vals[:-1]
-        eq = self.vals[-1]
-        lhs = ' + '.join(f'{coeff:.1f} x{n}' for n, coeff in enumerate(coefs) if coeff)
-        rhs = f"{eq:.2f}"
-        return f'{lhs} = {eq:.1f}'
+        lhs = ' + '.join(f'{coeff:.1f} x{n}' for n, coeff in enumerate(self.coeffs) if coeff)
+        return f'{lhs} = {self.eq:.1f}'
     def scale(self, f):
-        return Eqn(*[val * f for val in self.vals])
+        return Eqn([coeff * f for coeff in self.coeffs], self.eq * f)
     def copy(self):
-        return Eqn(*self.vals)
+        return Eqn(self.coeffs, self.eq)
     def __add__(self, other):
-        assert len(self.vals) == len(other.vals)
-        vals = [vala + valb for vala, valb in zip(self.vals, other.vals)]
-        return Eqn(*vals)
+        assert len(self.coeffs) == len(other.coeffs)
+        vals = [vala + valb for vala, valb in zip(self.coeffs, other.coeffs)]
+        return Eqn([ca + cb for ca, cb in zip(self.coeffs, other.coeffs)], self.eq + other.eq)
     def __sub__(self, other):
         return self + other.scale(-1)
     def apply(self, *vals):
-        coefs = self.vals[:-1]
-        assert len(vals) == len(coefs)
-        return sum(val * coef for val, coef in zip(vals, coefs))
+        assert len(vals) == len(self.coeffs)
+        return sum(val * coef for val, coef in zip(vals, self.coeffs))
     def verify(self, *vals):
-        eq = self.vals[-1]
-        return self.apply(*vals) == eq
+        return self.apply(*vals) == self.eq
 
 class Eqns:
     def __init__(self, *eqns):
@@ -62,7 +55,7 @@ class Eqns:
     def scale(self, n, f):
         self.eqn[n] = self.eqn[n].scale(f)
     def rhs(self):
-        return [eqn.vals[-1] for eqn in self.eqn]
+        return [eqn.eq for eqn in self.eqn]
 
     def swap(self, a, b):
         print(f"swap equations {a} and {b}")
@@ -70,20 +63,20 @@ class Eqns:
         print(self)
 
     def can_norm(self, n, pos):
-        val = self.eqn[n].vals[pos]
+        val = self.eqn[n].coeffs[pos]
         if val == 0:
             print(f"cant normalize equation {n} at position {pos} because its coefficient is zero there")
         return val != 0
 
     def norm(self, n, pos):
-        f = 1.0 / self.eqn[n].vals[n]
+        f = 1.0 / self.eqn[n].coeffs[n]
         print(f"replace equation {n} with {f}*({self.eqn[n].sstr()})")
         self.eqn[n] = self.eqn[n].scale(f)
         print(self)
 
     def elim(self, n, pos):
         # self.eqn[pos][pos] should be 1.0 or very close to it due to normalization.
-        f = self.eqn[n].vals[pos]
+        f = self.eqn[n].coeffs[pos]
         print(f"replace equation {n} with ({self.eqn[n].sstr()}) - {f}*({self.eqn[pos].sstr()})")
         self.eqn[n] = self.eqn[n] - self.eqn[pos].scale(f)
         print(self)
@@ -97,9 +90,9 @@ class Eqns:
         
 
 example = Eqns(
-    Eqn(2, 2, -3,  8),
-    Eqn(1, 1,  1,  9),
-    Eqn(2, 0,  2, 12),
+    Eqn([2, 2, -3],  8),
+    Eqn([1, 1,  1],  9),
+    Eqn([2, 0,  2], 12),
 )
 
 def test():
@@ -183,13 +176,13 @@ def solve():
 
 
 if __name__ == '__main__':
-    #print("tests ---------------")
-    #test()
-    #print()
+    print("tests ---------------")
+    test()
+    print()
 
-    #print("solving example ---------------")
-    #solve()
-    #print()
+    print("solving example ---------------")
+    solve()
+    print()
 
     print("auto solution ---------------")
     auto(example)
