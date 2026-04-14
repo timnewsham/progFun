@@ -52,11 +52,13 @@ class Eqns:
         assert len(eqns)
         assert all(eqns[0].cnt() == eqn.cnt() for eqn in eqns)
         self.eqn = list(eqns)
+    def cnt(self):
+        return len(self.eqn)
+    def __str__(self):
+        return '\n'.join(f"{n}: {eqn}" for n,eqn in enumerate(self.eqn)) + "\n"
     def copy(self):
         eqns = [eqn.copy() for eqn in self.eqn]
         return Eqns(*eqns)
-    def __str__(self):
-        return '\n'.join(f"{n}: {eqn}" for n,eqn in enumerate(self.eqn)) + "\n"
     def scale(self, n, f):
         self.eqn[n] = self.eqn[n].scale(f)
     def rhs(self):
@@ -66,6 +68,12 @@ class Eqns:
         print(f"swap equations {a} and {b}")
         self.eqn[a], self.eqn[b] = self.eqn[b], self.eqn[a]
         print(self)
+
+    def can_norm(self, n, pos):
+        val = self.eqn[n].vals[pos]
+        if val == 0:
+            print(f"cant normalize equation {n} at position {pos} because its coefficient is zero there")
+        return val != 0
 
     def norm(self, n, pos):
         f = 1.0 / self.eqn[n].vals[n]
@@ -106,6 +114,45 @@ def test():
     print("eval for x0,x1,x2 = 4,3,2")
     eqns.verify(4,3,2,)
 
+def auto(orig):
+    eqns = orig.copy()
+    print("original problem to solve")
+    print(eqns)
+
+    # take care of the lower triangle
+    for n in range(eqns.cnt()):
+        print(f"work on column {n}")
+        # we want to normalize position n
+        # find an equation that is normalizable at that position, swapping if necessary
+        for m in range(n, eqns.cnt()):
+            if eqns.can_norm(m, n):
+                break
+        else:
+            raise Error("impossible to solve")
+        if m != n:
+            eqns.swap(n, m)
+
+        # now we can normalize equation n at position n
+        assert eqns.can_norm(n, n)
+        print(f"we can normalize equation {n} at position {n}")
+        eqns.norm(n, n)
+
+        # we want to eliminate at pos n for all following equations
+        for m in range(n + 1, eqns.cnt()):
+            eqns.elim(m, n)
+
+    # take care of the upper triangle
+    for n in range(eqns.cnt()-1, -1, -1):
+        for m in range(n-1, -1, -1):
+            eqns.elim(m, n)
+
+    sln = eqns.rhs()
+    print(f"the answer is {sln}")
+    print()
+
+    print("verify our original equations")
+    orig.verify(*sln)
+
 def solve():
     eqns = example.copy()
     print("original problem to solve")
@@ -124,8 +171,10 @@ def solve():
     eqns.elim(1, 2)
     eqns.elim(0, 2)
     eqns.elim(0, 1)
+
     sln = eqns.rhs()
     print(f"the answer is {sln}")
+    print()
 
     print("verify our current equations")
     eqns.verify(*sln)
@@ -134,5 +183,13 @@ def solve():
 
 
 if __name__ == '__main__':
+    #print("tests ---------------")
     #test()
-    solve()
+    #print()
+
+    #print("solving example ---------------")
+    #solve()
+    #print()
+
+    print("auto solution ---------------")
+    auto(example)
