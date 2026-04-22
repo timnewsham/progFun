@@ -1,0 +1,294 @@
+a specific set of equations:
+
+  2 x0 + 2 x1 - 3 x2 = 8
+  1 x0 + 1 x1 + 1 x2 = 9
+  2 x0 + 0 x1 + 2 x2 = 12
+
+   soln: x0=4, x1=3, x2=2
+
+instead of solving for specific values (8,9,12) lets solve it generally for any values (y0,y1,y2):
+
+  2 x0 + 2 x1 - 3 x2 = y0
+  1 x0 + 1 x1 + 1 x2 = y1
+  2 x0 + 0 x1 + 2 x2 = y2
+
+   expanded to this, same exact equations
+     2 x0 + 2 x1 - 3 x2 = 1 y0 + 0 y1 + 0 y2
+     1 x0 + 1 x1 + 1 x2 = 0 y0 + 1 y1 + 0 y2
+     2 x0 + 0 x1 + 2 x2 = 0 y0 + 0 y1 + 1 y2
+
+   solved by gaussian elimination to this, true when the above is true
+     1 x0 + 0 x1 + 0 x2 =  0.2 y0 - 0.4 y1 + 0.5 y2
+     0 x0 + 1 x1 + 0 x2 =    0 y0 +   1 y1 - 0.5 y2
+     0 x0 + 0 x1 + 1 x2 = -0.2 y0 + 0.4 y1 + 0 y2
+
+   now for any specific (y0,y1,y2) we can figure out what the (x0,x1,x2) are:
+     x0 =  0.2 y0 - 0.4 y1 + 0.5 y2
+     x1 =    0 y0 +   1 y1 - 0.5 y2
+     x2 = -0.2 y0 + 0.4 y1 +   0 y2
+
+   What if we want to solve the original problem for (y0,y1,y2) of (8,9,12)?  plug them in!
+   we get (4,3,2) for (x0,x1,x2).
+
+Lets call the equations on the left hand side A(x0,x1,x2).
+Lets call the equations on the right hand side B(y0,y1,y2).
+We already saw:
+
+    A(4,3,2) = (8,9,12)
+    (4,3,2)  = B(8,9,12)
+
+what happens if we apply A to (4,3,2) first then take the results and apply B to them?
+
+      B( A(4,3,2) ) =           plugging in (4,3,2) for the x's gives (8,9,12)
+      B(8,9,12) =               plugging in (8,9,2) for the y's gives (4,3,2)
+      (4,3,2)                   we got back our original value.
+
+what happens if we first apply B to (8,9,12) and then apply A to the result?
+
+       A( B(8,9,12) ) =
+       A(4,3,2) =
+       (8,9,2)                  we got back our original value.
+
+and this is fully generally.  Remember that the (x0,x1,x2) in A(x0,x1,x2) = (y0,y1,y2) is the same (x0,x1,x2)
+in (x0,x1,x2) = B(y0,y1,y2), and generally for any (a,b,c) this is true:
+       B( A(a,b,c) ) = (a,b,c)
+and
+       A( B(u,v,w) ) = (u,v,w)
+
+we already saw hints of a set of equations that does this above:
+
+    1 x0 + 0 x1 + 0 x2 = y0
+    0 x0 + 1 x1 + 0 x2 = y1
+    0 x0 + 0 x1 + 1 x2 = y2
+
+we will call these equations I for identity because when you appy it to some values,
+you get them back out:
+
+    I(a,b,c) = (a,b,c)
+
+so we can say that
+
+    A(B(a,b,c)) = I(a,b,c)
+and
+    B(A(a,b,c)) = I(a,b,c)
+
+and the combination of doing A after B or doing B after A is just I, we can write this as:
+
+    (A B)(a,b,c) = I(a,b,c)
+    (B A)(a,b,c) = I(a,b,c)
+
+or more simply
+
+    A B = I
+    B A = I
+
+note when you see
+
+    A B x
+
+you can think of this as
+
+    A (B x) = x
+
+or as 
+
+    (A B) x = x
+        I x = x
+
+
+more compact notation for writing our A(x0,x1,x2) = (8,9,2) above:
+
+  |2  2 -3|  |x0|     |8|
+  |1  1  1|  |x1|  =  |9|
+  |2  0  2|  |x2|     |2|
+
+and for writing (x0,x1,x2) = B(y0,y1,y2) above:
+
+  |x0|     | 0.2  -0.4   0.5| |y0|
+  |x1|  =  |   0     1  -0.5| |y1|
+  |x2|     |-0.2   0.4     0| |y2|
+
+and for writing A(B(x0,x1,x2)) = (x0,x1,x2):
+
+  | 0.2  -0.4   0.5|  |2  2 -3|  |x0|     |x0|
+  |   0     1  -0.5|  |1  1  1|  |x1|  =  |x1|
+  |-0.2   0.4     0|  |2  0  2|  |x2|     |x2|
+
+and for writing I(x0,x1,x2) = (x0,x1,x2):
+
+  |1  0  0|  |x0|     |x0|
+  |0  1  0|  |x1|  =  |x1|
+  |0  0  1|  |x2|     |x2|
+
+or B A = I:
+
+  | 0.2  -0.4   0.5|  |2  2 -3|     |1 0 0|
+  |   0     1  -0.5|  |1  1  1|  =  |0 1 0|
+  |-0.2   0.4     0|  |2  0  2|     |0 0 1|
+
+---
+
+Lets look at what happens when we try applying B( A(x,y,z) ) for different (x,y,z):
+
+    B( A(1, 0, 0) ) = 
+      B(2, 1, 2) =
+      (1, 0, 0)
+
+    B( A(0, 1, 0) ) =
+      B(2, 1, 0) =
+      (0, 1, 0)
+
+    B( A(0, 0, 1) ) =
+      B(-3, 1, 2) =
+      (0, 0, 1)
+ 
+Of course we get out what we put in, as expected.
+But interestingly applying A(1, 0, 0) gives the first column of A because we're
+evaluating our original equations with x0=1,x1=0,x2=0 and we only get out the x0 coefficients.
+
+Applying A(0, 1, 0) gives the second column of A, the x1 coefficients.
+Applying A(0, 0, 1) gives the third column of A, the x2 coefficients.
+
+Applying B(2, 1, 2) is applying the first column of A, the x0 coefficients, as the (y0,y1,y2) coefficients of B.
+And it returns (1, 0, 0), or x0=1,x1=0,x2=0.
+And applying the second column of A, the x1 coefficients, to B gives x0=0,x1=1,x2=0.
+And applying the third column of A, the x2 coefficients, to B gives x0=0,x1=0,x2=1.
+
+
+--
+Column view
+   Look at A applied to xs.  ys = A xs.
+   Lets isolate x0 and apply A to (x0, 0, 0).  This means the x1 and x2 terms are all zero.
+   and we're left with
+
+      2 x0 + 2 0 - 3 0  = 2
+      1 x0 + 1 0 + 1 0  = 1
+      2 x0 + 0 0 + 2 0  = 2
+
+      A(x0,0,0) = (2 x0, 1 x0, 2 x0) = A_col0 scaled by x0 = x0 * A_col0
+
+   where a number times a collection of values scales those values:  n * (x0, x1, x2) = (n * x0, n * x1, n * x2).
+   and we get a similar result for each of the three columns
+
+      A(x0, 0,  0) = ( 2 x0, 1 x0, 2 x0) = x0 * A_col0
+      A(0, x1,  0) = ( 2 x1, 1 x1, 0 x1) = x1 * A_col1
+      A(0,  0, x2) = (-3 x2, 1 x2, 2 x2) = x2 * A_col2
+
+  and because these are linear equations, 
+
+      A(x0, x1, x2) = A(x0, 0, 0) + A(0, x1, 0) + A(0, 0, x2)
+                    = x0 * A_col0 + x1 * A_col1 + x2 * A_col2
+
+  where addition between two sets of numbers (x0, x1, x2) + (y0, y1, y2) = (x0+y0, x1+y1, x2+y2).
+  or written out in full
+
+                           |  2 |         | 1 |         | 2 |     | y0 |     |  2  1  2 |  | x0 |
+      A(x0, x1, x2) = x0 * |  2 |  + x1 * | 1 |  + x2 * | 0 |  =  | y1 |  =  |  2  1  0 |  | x1 |
+                           | -3 |         | 1 |         | 2 |     | y2 |     | -3  1  2 |  | x2 |
+
+  The column view lets us think about the effect of each input independently and 
+  the coefficients for x0, x1, and x2 make up the three columns of the set of equations A.
+
+--
+Row view
+   Look at A applied to xs.  ys = A xs.
+   Lets isolate y0 by computing it directly, its entirely specified by the first equation.
+
+      2 x0 + 2 x1 - 3 x2  = y0
+
+   If we define a "dot" operation as meaning   (x0, x1, x2) dot (c0, c1, c2) = c0*x0 + c1*x1 + c2*x2
+   this captures the application of an equation to its parameters and we can write more shortly
+
+      y0 = (2, 2, -3) dot (x0, x1, x2)
+      y0 = A_row0 dot xs
+
+   and similarly for all three equations and three outputs:
+
+      y0 = A_row0 dot xs
+      y1 = A_row1 dot xs
+      y2 = A_row2 dot xs
+
+  The row view lets us think about each of the outputs independently.
+
+--
+Breaking down composition
+  Lets go back to our example of applying B after A to xs. We know the output is xs, but lets call its output zs for now:
+  zs = B( A(xs) )
+
+  because this is linear, we know zs will be a sum of what happens when we apply x0, x1, and x2 seperately
+
+     zs = B( A(x0, 0, 0) ) + B( A(0, x1, 0) ) + B( A(0, x2, 0) )
+
+  lets focus on the first component, using what we learned above about columns:
+
+       B( A(x0, 0, 0) ) = B( x0 * A_col0 )
+
+  and because we have linear equations, we B(x * v) = x * B(v) and we can rewrite as
+
+       B( A(x0, 0, 0) ) = x0 * B(A_col0)
+
+  and simiarly for all x0, x1, and x2
+
+       B( A(x0, 0, 0) ) = x0 * B(A_col0)
+       B( A(x1, 0, 0) ) = x1 * B(A_col1)
+       B( A(x2, 0, 0) ) = x2 * B(A_col1)
+
+  so we can rewrite z0 as the sum
+
+     zs = x0 * B(A_col0) + x1 * B(A_col1) + x2 * B(A_col2)
+  
+  this is a system of three equations:  zs = M xs
+  where the first column, the x0 coefficients, are B(A_col0),
+  the second column, the x1 coefficients, are B(A_col1),
+  and the third column, the x2 coefficients, are B(A_col2).
+
+  So we can say the combination of performing B after A has the same effect as M:
+
+     BA = M = | B(A_col0), B(A_col1), B(A_col2) |
+
+  or 
+
+     M_col0 = B(A_col0)
+     M_col1 = B(A_col1)
+     M_col2 = B(A_col2)
+
+  which is made up of three columns. This construction is true for any B and A, but
+  lets see what those three columns are for our example B and A equations:
+
+    B(2, 1, 2)  = (1, 0, 0)      (M col0)
+    B(2, 1, 0)  = (0, 1, 0)      (M col1)
+    B(-3, 1, 2) = (0, 0, 1)      (M col2)
+
+  which gives us M = I, the identity matrix as we had shown earlier.
+
+              | 1  0  0 |
+     B A   =  | 0  1  0 |
+              | 0  0  1 |
+
+  note: B(2, 1, 2) resulted in the left column (1, 0, 0), NOT the top row.
+
+
+  This combination "B after A" is a composition of the action of A on something with the action of B on the result.
+  But this operation is commonly called Matrix Multiplication.
+
+  What are the components of each column of M?
+
+    M_col0 = B(A_col0)
+
+  where both A_col0 and M_col0 have three values. Recall from the row view that applying B to three values
+  can be written as three equations using a dot product:
+
+    M_col0_0 = B_row0 dot A_col0
+    M_col0_1 = B_row1 dot A_col0
+    M_col0_2 = B_row2 dot A_col0
+
+  and more generally, each coefficient in the M set of equations comes from a dot product of one row of B
+  with one column of A. 
+
+     M_col{c}_row{r} = B_row{r} dot A_col{c}
+
+   written in full, M's 9 coefficients are:
+
+             |  (B_row0 . A_col0)    (B_row0 . A_col1)   (B_row0 . A_col2)  |
+     M   =   |  (B_row1 . A_col0)    (B_row1 . A_col1)   (B_row1 . A_col2)  |
+             |  (B_row2 . A_col0)    (B_row2 . A_col1)   (B_row2 . A_col2)  |

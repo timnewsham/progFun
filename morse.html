@@ -1,0 +1,214 @@
+<html>
+<head>
+<script>
+
+var dit, dah, interSym, interLetter, interWord;
+
+setWPM = function(wpm, stretch) {
+	const unit = 0.048 * 25 / wpm; // 25wpm = 48msec
+	//console.log("WPM", wpm, "dit is", unit * 1000);
+
+	stretch = stretch || 1.0;
+
+	dit = unit;
+	dah = 3 * dit;
+	interSym = 1 * dit;
+	interLetter = 3 * dit * stretch;
+	interWord = 7 * dit * stretch;
+};
+
+const codeFor = {
+  "A": ".-",
+  "B": "-...",
+  "C": "-.-.",
+  "D": "-..",
+  "E": ".",
+  "F": "..-.",
+  "G": "--. ",
+  "H": "....",
+  "I": "..",
+  "J": ".---",
+  "K": "-.-",
+  "L": ".-..",
+  "M": "--",
+  "N": "-.",
+  "O": "---",
+  "P": ".--.",
+  "Q": "--.-",
+  "R": ".-.",
+  "S": "...",
+  "T": "-",
+  "U": "..-",
+  "V": "...-",
+  "W": ".--",
+  "X": "-..-",
+  "Y": "-.--",
+  "Z": "--..",
+  //" ": "-.-.-.-",  // XXX?
+  " ": "/",
+  ",": "--..--",
+  ":": "---...",
+  ";": "-.-.-.",
+  ".": ".-.-.-",
+  "\"": ".-..-.",
+  "(": "-----.",
+  ")": ".-----",
+  "'": "-.--.-",
+  "1": ".----",
+  "2": "..---",
+  "3": "...-- ",
+  "4": "....-",
+  "5": ".....",
+  "6": "-....",
+  "7": "--...",
+  "8": "---..",
+  "9": "----.",
+  "0": "-----",
+};
+
+class Engine {
+	constructor() {
+		this.att = 0.010;
+		this.rel = 0.010;
+
+		this.audio = new AudioContext();
+
+		this.env = new GainNode(this.audio);
+		this.osc = new OscillatorNode(this.audio, {
+			frequency: 700,
+			type: "sine",
+		});
+
+		const now = this.audio.currentTime;
+		this.env.gain.setValueAtTime(0, now);
+		this.osc.start(now);
+
+		this.osc.connect(this.env).connect(this.audio.destination);
+
+		this.endAt = now;
+	}
+
+	when() {
+		const now = this.audio.currentTime;
+		if(this.endAt > now) {
+			return this.endAt;
+		}
+		return now;
+	}
+
+	tone(dur) {
+		const t = this.when();
+		this.env.gain.setValueAtTime(0, t);
+		this.env.gain.linearRampToValueAtTime(1, t + this.att);
+		this.env.gain.linearRampToValueAtTime(1, t + (dur - this.rel));
+		this.env.gain.linearRampToValueAtTime(0, t + dur);
+
+		this.endAt = t + dur;
+	}
+
+	silence(dur) {
+		const t = this.when();
+		this.endAt = t + dur;
+	}
+
+	// Play the symbols in the message, and return the relative
+	// time of when the first symbol starts.
+	play(msg) {
+		const dt = this.when() - this.audio.currentTime;
+
+		for(const ch of msg) {
+			switch(ch) {
+			case '.':
+				this.tone(dit);
+				this.silence(interSym);
+				break;
+			case '-':
+				this.tone(dah);
+				this.silence(interSym);
+				break;
+			case ' ':
+				this.silence(interLetter);
+				break;
+			case '/': // maybe newline, colon, others?
+				this.silence(interWord);
+				break;
+			default:
+				console.log("play: skipping unknown character", ch);
+				break;
+			}
+		}
+		return dt;
+	}
+}
+
+var e = null;
+
+playKey = function(k) {
+	if(e == null) {
+		e = new Engine();
+	}
+
+	const code = codeFor[k];
+	if(code == null) {
+		console.log("playKey: skipping", k);
+		return;
+	}
+
+	if(k == " ") {
+		k = "[SPACE]";
+	}
+
+    const display = document.querySelector("#display");
+	const dt = e.play(code);
+	e.play(" ");
+	setTimeout(() => {
+		display.innerText = `${k} ${code}`;
+	}, dt * 1000.0);
+	return;
+}
+
+testing = function() {
+	if(e === null) {
+		e = new Engine(); 
+	}
+	e.play("... --- .../... --- ...");
+}
+
+onload = function() {
+    const txt = document.querySelector("#text");
+    txt.addEventListener("keyup", (event) => {
+		txt.value = "";
+		playKey(event.key.toUpperCase());
+    });
+
+	const wpmSlider = document.querySelector("#wpm");
+	const stretchSlider = document.querySelector("#stretch");
+	const updateWpm = function() {
+		const wpm = wpmSlider.value;
+		const stretch = stretchSlider.value;
+		setWPM(wpm, stretch);
+		document.querySelector("#wpm-display").innerText = `WPM: ${wpm}  STRETCH: ${stretch}`;
+	}
+
+	wpmSlider.addEventListener("input", (event) => { updateWpm() });
+	stretchSlider.addEventListener("input", (event) => { updateWpm() });
+	updateWpm(wpmSlider.value);
+}
+
+
+</script>
+</head>
+<body>
+<h1>Morse Keyboard</h1>
+<p>Type into the input box and hear the morse code in real time.</p>
+
+<h1 id="display">MORSE</h1>
+
+<div>
+  <textarea name="text" id="text">TYPE HERE</textarea><br>
+  <input type="range" id="wpm" name="wpm" min="10" max="30" value="20"/><label for="WPM">WPM</label><br/><br>
+  <input type="range" id="stretch" name="stretch" min="1" max="5" value="3"/><label for="stretch">Stetch inter-character spaces</label><br/><br>
+  <p id="wpm-display">-</p>
+</div>
+</body>
+</html>
