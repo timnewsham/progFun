@@ -1,0 +1,237 @@
+<html>
+<head>
+  <title>Unfair Coin Game</title>
+  <style>
+  .balance {
+    font-size: 2.5rem;
+    font-weight: bold;
+  }
+  .error {
+    color: red;
+    font-size: 2.5rem;
+    font-weight: bold;
+   }
+  </style>
+<script>
+
+const Heads = "heads";
+const Tails = "tails";
+
+// coinflip performs a biased coin flip returning Heads 60% or Tails 40%.
+function coinflip() {
+	while(true) {
+		// get a random nyble [0..16];
+		const dat = new Uint8Array(1);
+		window.crypto.getRandomValues(dat);
+		const val = dat[0] & 0xf;
+
+		if(val < 4) {
+			return Tails;
+		}
+		if(val < 10) {
+			return Heads;
+		}
+		// out of range, try again, to avoid bias.
+	}
+}
+
+const ui = (tag) => { return document.getElementById(tag); };
+
+function perc(n, total) {
+	if(total == 0) {
+		return "- %";
+	}
+	const p = ((100.0 * n) / total).toFixed(1);
+	return `${p}%`;
+}
+
+function ratio(n, total) {
+	return `${n} of ${total} (${perc(n, total)})`;
+}
+
+class Stats {
+	constructor() {
+		this.history = [];
+		this.bets = 0;
+		this.wins = 0;
+		this.loses = 0;
+		this.coin_heads = 0;
+		this.coin_tails = 0;
+		this.bet_heads = 0;
+		this.bet_tails = 0;
+
+		// maybe later: track how many wins based on betting heads / betting tails...
+	}
+
+	LogBet(coin, prediction, betsize, win, balance) {
+		this.history.push([coin, prediction, betsize, win, balance]);
+
+		this.bets += 1;
+
+		if(win) {
+			this.wins += 1;
+		} else {
+			this.loses += 1;
+		}
+
+		if(coin == Heads) {
+			this.coin_heads += 1;
+		} else {
+			this.coin_tails += 1;
+		}
+
+		if(prediction == Heads) {
+			this.bet_heads += 1;
+		} else {
+			this.bet_tails += 1;
+		}
+	}
+
+	LogMsg() {
+		var msg = "";
+		for(var i = this.history.length - 1; i >= 0; i -= 1) {
+			const [coin, prediction, betsize, win, balance] = this.history[i];
+			const winStr = win ? "won" : "lost";
+			msg += `Bet ${i+1}, $${betsize} on ${prediction}. Flipped ${coin} and ${winStr}. Balance: $${balance}\n`;
+		}
+		return msg;
+	}
+}
+
+class Game {
+    constructor() {
+		this.attach()
+		this.Reset()
+    }
+
+	// attach connects to the UI elements.
+	attach() {
+		this.ui_balance = ui("balance");
+		this.ui_error = ui("error");
+		this.ui_betsize = ui("betsize");
+		this.ui_statscoin = ui("statscoin");
+		this.ui_statsbet = ui("statsbet");
+		this.ui_statswin = ui("statswin");
+		this.ui_logs = ui("logs");
+
+		ui("betheads").addEventListener("click", (event) => { this.Bet(Heads) });
+		ui("bettails").addEventListener("click", (event) => { this.Bet(Tails) });
+		ui("newgame").addEventListener("click", (event) => { this.NewGame() });
+	}
+
+    // Reset the game, starting a new game.
+    Reset() {
+		this.balance = 1000;
+		this.stats = new Stats();
+		this.error("");
+		this.show();
+    }
+
+	error(msg) {
+		this.ui_error.textContent = msg;
+	}
+
+	showBalance() {
+		this.ui_balance.textContent = `$${this.balance}`;
+		if(this.balance == 0) {
+			this.error(`Your Are Broke!`);
+		}
+	}
+
+	showStats() {
+		const stats = this.stats;
+		this.ui_statscoin.textContent = `Flipped Heads ${ratio(stats.coin_heads, stats.bets)}, Flipped Tails ${ratio(stats.coin_tails, stats.bets)}`;
+		this.ui_statsbet.textContent = `Bet Heads ${ratio(stats.bet_heads, stats.bets)}, Bet Tails ${ratio(stats.bet_tails, stats.bets)}`;
+		this.ui_statswin.textContent = `Won ${ratio(stats.wins, stats.bets)}, Lost ${ratio(stats.loses, stats.bets)}`;
+
+		this.ui_logs.innerText = stats.LogMsg();
+	}
+
+	show() {
+		this.showBalance();
+		this.showStats();
+	}
+
+	NewGame() {
+		this.Reset();
+		this.error("Starting New Game");
+	}
+
+	place_bet(betsize, prediction) {
+		const coin = coinflip();
+		const win = prediction == coin;
+		const winMsg = win ? "won" : "lost";
+
+		this.error(`you bet $${betsize} on ${prediction}. The flip was ${coin} and you ${winMsg}`);
+
+		// pay.
+		if(win) {
+			this.balance += betsize;
+		} else {
+			this.balance -= betsize;
+		}
+		this.stats.LogBet(coin, prediction, betsize, win, this.balance);
+	}
+
+	Bet(prediction) {
+		const betsize = Number(this.ui_betsize.value);
+		if(this.balance == 0) {
+			this.error(`Your Are Broke!`);
+			return;
+		}
+		if(!Number.isInteger(betsize)) {
+			this.error(`Your bet must be a whole number, not ${this.ui_betsize.value}`);
+			return;
+		}
+		if(betsize < 1 || betsize > this.balance) {
+			this.error(`Your bet must be between $1 and $${this.balance}`);
+			return;
+		}
+
+		this.place_bet(betsize, prediction);
+		this.show();
+	}
+}
+
+var game;
+onload = function() {
+	game = new Game();
+}
+</script>
+</head>
+<body>
+  <h1>Unfair Coin Game</h1>
+  <p>Play the unfair coin game!
+  <p>You get to bet on the outcome of coin flips.
+  <p>Each coin flip is independent, and the coin is not fair. It comes
+  up Heads 60% of the time and Tails 40% of the time.
+  <p>How much money can you make?
+
+  <div class=game>
+    <table>
+      <tr>
+        <td>
+          <div id=controls>
+            <input type=text id=betsize value=100></input>
+            <button id=betheads>Heads</button>
+            <button id=bettails>Tails</button>
+            <button id=newgame>New Game</button>
+          </div>
+        </td>
+        <td>
+          <div id=stats>
+            <div id=statscoin></div>
+            <div id=statsbet></div>
+            <div id=statswin></div>
+          </div>
+        </td>
+      </tr>
+    </table>
+    <div class=display>
+      <div class=balance id=balance>$1000</div>
+      <div class=error id=error>error</div>
+      <div class=logs><pre id=logs></pre></div>
+    </div>
+  </div>
+</body>
+</html>
