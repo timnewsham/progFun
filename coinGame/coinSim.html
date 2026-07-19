@@ -1,0 +1,294 @@
+<html>
+<head>
+  <title>Unfair Coin Sim</title>
+<script>
+
+const Heads = "heads";
+const Tails = "tails";
+
+// coinflip performs a biased coin flip returning Heads 60% or Tails 40%.
+function coinflip() {
+	while(true) {
+		// get a random nyble [0..16];
+		const dat = new Uint8Array(1);
+		window.crypto.getRandomValues(dat);
+		const val = dat[0] & 0xf;
+
+		if(val < 4) {
+			return Tails;
+		}
+		if(val < 10) {
+			return Heads;
+		}
+		// out of range, try again, to avoid bias.
+	}
+}
+
+const ui = (tag) => { return document.getElementById(tag); };
+
+function perc(n, total) {
+	if(total == 0) {
+		return "- %";
+	}
+	const p = ((100.0 * n) / total).toFixed(1);
+	return `${p}%`;
+}
+
+function ratio(n, total) {
+	return `${n} of ${total} (${perc(n, total)})`;
+}
+
+const log10f = 1.0 / Math.log(10);
+
+function log10(x) {
+	return log10f * Math.log(x);
+}
+
+function rgb(r,g,b) {
+	return `rgb(${Math.floor(255*r)} ${Math.floor(255*g)} ${Math.floor(255*b)} / 100%)`;
+}
+
+function blend(p, r,g,b, rr,gg,bb) {
+	return rgb(
+		(1-p)*r + p*rr,
+		(1-p)*g + p*gg,
+		(1-p)*b + p*bb
+	);
+}
+
+class Point {
+	constructor(x, y) {
+		this.x = x;
+		this.y = y;
+	}
+}
+
+class Sim {
+	constructor() {
+		this.BALANCE = 1000;
+		this.STEPS = 500;
+		this.TIMES = 1000;
+		this.BINS = 50;
+
+		// which range to bin, in powers of 10.
+		this.MAX = 15.0;
+		this.MIN = -15.0;
+
+		this.runbins = [];
+		this.runnames = [];
+
+		this.ui = ui("plot");
+	}
+
+	bet(p, balance) {
+		// note: you can go broke if wagers are quantized.
+		// otherwise you will always have some (possibly really small) fraction left.
+		//const wager = Math.ceil(p * balance);
+
+		const wager = p * balance;
+		const win = coinflip() == Heads;
+		//console.log("wagering", wager, "win", win);
+		if(win) {
+			return balance + wager;
+		} else {
+			return balance - wager;
+		}
+	}
+
+	sim1(p) {
+		var balance = this.BALANCE;
+		var steps = 0;
+		while(steps < this.STEPS && balance > 0) {
+			steps += 1;
+			balance = this.bet(p, balance);
+		}
+		//console.log(`with ${p} ended with ${balance} after ${steps}`);
+		return balance;
+	}
+
+	binnum(x) {
+		return Math.round(this.BINS * (x-this.MIN)/(this.MAX - this.MIN));
+	}
+
+	sim(p) {
+		var avg = 0;
+		var small = 0;
+		var big = 0;
+		const bins = Array(this.BINS).fill(0);
+		for(var times = 0; times < this.TIMES; times += 1) {
+			const balance = this.sim1(p);
+			avg += balance;
+
+			// bin the data if its in our binning range.
+			var bnum = this.binnum(log10(balance));
+			if(bnum < 0) {
+				small += 1;
+				bnum = 0;
+			} else if(bnum >= this.BINS) {
+				bnum = this.BINS - 1;
+				big += 1;
+			}
+			bins[bnum] += 1;
+		}
+
+		this.runbins.push(bins);
+		this.runnames.push(`${perc(p, 1.0)}`);
+		avg = avg / this.TIMES;
+		console.log(`with ${p} averaged ${log10(avg)} small=${small} big=${big}`);
+		return avg;
+	}
+
+	/*
+	sims() {
+		for(var n = 5; n <= 60; n+=10) {
+			const p = n / 100.0;
+			const balance = this.sim(p);
+		}
+	}
+	*/
+
+	plot() {
+		const draw = this.ui.getContext("2d");
+		const w = this.ui.width;
+		const h = this.ui.height;
+
+		const ncurves = this.runbins.length;
+		var maxcnt = 0;
+		for(const bins of this.runbins) {
+			for(const cnt of bins) {
+				if(cnt > maxcnt) {
+					maxcnt = cnt;
+				}
+			}
+		}
+
+		console.log(`bin ${this.BINS} maxcnt ${maxcnt}`);
+
+		// transform bin and bin count into x and y in our w,h canvas.
+		const hmarg = 10;
+		const wmarg = 20;
+		const coord = (bin, cnt) => {
+			const y = Math.round(h - hmarg - (h-2*hmarg) * (cnt/maxcnt));
+			const x = Math.round(wmarg + (w-2*wmarg) * (bin / this.BINS));
+			return new Point(x, y);
+		};
+
+		// clear canvas.
+		const grad = draw.createLinearGradient(0, 0, w, w);
+		grad.addColorStop(0, rgb(0.95, 0.95, 1.0));
+		grad.addColorStop(1, rgb(0.7, 0.7, 1.0));
+		draw.fillStyle = grad;
+		draw.fillRect(0, 0, w, h);
+
+		// throw in some ticks for bins
+		const tickColor = rgb(0.98, 0.98, 1.0);
+		draw.strokeStyle = tickColor;
+		for(var bin = 0; bin < this.BINS; bin += 2) {
+			var p = coord(bin, 0);
+			draw.beginPath();
+			draw.moveTo(p.x, hmarg);
+			draw.lineTo(p.x, h-hmarg);
+			draw.stroke();
+		}
+
+		// tick for where bin0 is.
+		const bin0 = this.binnum(0);
+		draw.strokeStyle = "black";
+		if(true) {
+			const bin = bin0;
+			var p = coord(bin, 0);
+			draw.beginPath();
+			draw.moveTo(p.x, hmarg);
+			draw.lineTo(p.x, h-hmarg);
+			draw.stroke();
+		}
+
+		// ticks for counts
+		draw.strokeStyle = tickColor;
+		for(var cnt = 0; cnt < maxcnt; cnt += 50) {
+			var p = coord(0, cnt);
+			draw.beginPath();
+			draw.moveTo(wmarg, p.y);
+			draw.lineTo(w-wmarg, p.y);
+			draw.stroke();
+		}
+
+		// plot each run's bins.
+		draw.strokeStyle = "black";
+		for(var run = 0; run < this.runbins.length; run += 1) {
+			const name = this.runnames[run];
+			const bins = this.runbins[run];
+			const runp = run / this.runbins.length;
+
+			const col = blend(runp, 0.5,0.1,0,  0.1,0.5,0);
+			draw.strokeStyle = col;
+			draw.fillStyle = col;
+
+			// put up a label
+			draw.font = "12px serif";
+			draw.fillText(name, w-100, 40 + Math.floor(20 * run));
+
+			// plot one bin as a curve
+			draw.beginPath();
+			for(var bin = 0; bin < bins.length; bin += 1) {
+				const p = coord(bin, bins[bin]);
+				if(bin == 0) {
+					draw.moveTo(p.x, p.y);
+				} else {
+					draw.lineTo(p.x, p.y);
+				}
+			}
+			draw.stroke();
+		}
+	}
+}
+
+var sim;
+function runsim(min, max, step) {
+	sim = new Sim();
+	for(var n = min; n <= max; n+=step) {
+		sim.sim(n / 100);
+	}
+	sim.plot();
+}
+
+function getNum(tag) {
+	const txt = ui(tag).value;
+	const n = Number(txt);
+	if(!Number.isInteger(n)) {
+		console.log("Invalid integer", txt);
+		return null;
+	}
+	return n;
+}
+
+function runplot() {
+	const min = getNum("min");
+	const max = getNum("max");
+	const step = getNum("step");
+	if(min != null && max != null && step != null) {
+		runsim(min, max, step);
+	}
+}
+
+onload = function() {
+	ui("runplot").addEventListener("click", (event) => runplot());
+	runsim(5,10,5);
+}
+</script>
+</head>
+<body>
+  <h1>Unfair Coin Sim</h1>
+  <table>
+  <tr>
+    <td><canvas id="plot" width="800" height="500">picture here</canvas></td>
+    <td>
+	  <button id=runplot>plot</button><br>
+      <input id=min type=text value=5></input><br>
+      <input id=max type=text value=10></input><br>
+      <input id=step type=text value=5></input>
+    </td>
+  </tr>
+  </table>
+</body>
+</html>

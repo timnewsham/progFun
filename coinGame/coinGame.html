@@ -100,6 +100,8 @@ class Stats {
 
 class Game {
     constructor() {
+		this.WINCOST = 1;
+
 		this.attach()
 		this.Reset()
     }
@@ -166,7 +168,7 @@ class Game {
 
 		// pay.
 		if(win) {
-			this.balance += betsize;
+			this.balance += betsize - this.WINCOST;
 		} else {
 			this.balance -= betsize;
 		}
@@ -202,9 +204,12 @@ onload = function() {
 <body>
   <h1>Unfair Coin Game</h1>
   <p>Play the unfair coin game!
-  <p>You get to bet on the outcome of coin flips.
-  <p>Each coin flip is independent, and the coin is not fair. It comes
-  up Heads 60% of the time and Tails 40% of the time.
+  <ul>
+    <li>You get to bet on the outcome of coin flips. $1 bet wins $1.
+    <li>Each coin flip is independent, and the coin is not fair. It comes up Heads 60% of the time and Tails 40% of the time.
+    <li>You start with $1000 and can only bet what you own. No fractional dollar bets are allowed.
+    <li>The house takes $1 from each win. Losses are on us.
+  </ul>
   <p>How much money can you make?
 
   <div class=game>
