@@ -53,6 +53,7 @@ class Stats {
 	constructor() {
 		this.history = [];
 		this.bets = 0;
+		this.rake = 0;
 		this.wins = 0;
 		this.loses = 0;
 		this.coin_heads = 0;
@@ -63,10 +64,11 @@ class Stats {
 		// maybe later: track how many wins based on betting heads / betting tails...
 	}
 
-	LogBet(coin, prediction, betsize, win, balance) {
-		this.history.push([coin, prediction, betsize, win, balance]);
+	LogBet(coin, prediction, betsize, win, rake, balance) {
+		this.history.push([coin, prediction, betsize, win, rake, balance]);
 
 		this.bets += 1;
+		this.rake += rake;
 
 		if(win) {
 			this.wins += 1;
@@ -90,9 +92,9 @@ class Stats {
 	LogMsg() {
 		var msg = "";
 		for(var i = this.history.length - 1; i >= 0; i -= 1) {
-			const [coin, prediction, betsize, win, balance] = this.history[i];
+			const [coin, prediction, betsize, win, rake, balance] = this.history[i];
 			const winStr = win ? "won" : "lost";
-			msg += `Bet ${i+1}, $${betsize} on ${prediction}. Flipped ${coin} and ${winStr}. Balance: $${balance}\n`;
+			msg += `Bet ${i+1}, $${betsize} on ${prediction}. Flipped ${coin} and ${winStr}. Paid house ${rake} Balance: $${balance}\n`;
 		}
 		return msg;
 	}
@@ -114,6 +116,7 @@ class Game {
 		this.ui_statscoin = ui("statscoin");
 		this.ui_statsbet = ui("statsbet");
 		this.ui_statswin = ui("statswin");
+		this.ui_house = ui("house");
 		this.ui_logs = ui("logs");
 
 		ui("betheads").addEventListener("click", (event) => { this.Bet(Heads) });
@@ -145,6 +148,7 @@ class Game {
 		this.ui_statscoin.textContent = `Flipped Heads ${ratio(stats.coin_heads, stats.bets)}, Flipped Tails ${ratio(stats.coin_tails, stats.bets)}`;
 		this.ui_statsbet.textContent = `Bet Heads ${ratio(stats.bet_heads, stats.bets)}, Bet Tails ${ratio(stats.bet_tails, stats.bets)}`;
 		this.ui_statswin.textContent = `Won ${ratio(stats.wins, stats.bets)}, Lost ${ratio(stats.loses, stats.bets)}`;
+		this.ui_house.textContent = `Paid house $${stats.rake}`;
 
 		this.ui_logs.innerText = stats.LogMsg();
 	}
@@ -167,12 +171,13 @@ class Game {
 		this.error(`you bet $${betsize} on ${prediction}. The flip was ${coin} and you ${winMsg}`);
 
 		// pay.
+		const rake = win ? this.WINCOST : 0;
 		if(win) {
-			this.balance += betsize - this.WINCOST;
+			this.balance += betsize - rake;
 		} else {
-			this.balance -= betsize;
+			this.balance -= betsize - rake;;
 		}
-		this.stats.LogBet(coin, prediction, betsize, win, this.balance);
+		this.stats.LogBet(coin, prediction, betsize, win, rake, this.balance);
 	}
 
 	Bet(prediction) {
@@ -228,6 +233,7 @@ onload = function() {
             <div id=statscoin></div>
             <div id=statsbet></div>
             <div id=statswin></div>
+            <div id=house></div>
           </div>
         </td>
       </tr>
