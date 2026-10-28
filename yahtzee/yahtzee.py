@@ -9,18 +9,18 @@ def roll():
     """Roll one dice, picking a random value from 1 to 6."""
     return secrets.choice([1,2,3,4,5,6])
 
-def rolln(N):
-    """Roll N dice"""
+def rolls(N):
+    """Return N rolls of the dice"""
     return [roll() for n in range(N)]
 
 def reroll(keep):
     """Reroll keeps some dice and re-rolls the rest."""
     want = 5 - len(keep)
     #print("keep", keep, "reroll", want)
-    return keep + rolln(want)
+    return keep + rolls(want)
 
-def strategy(dice):
-    """Strategy: rank the dice into groups and keep the most matched dice, of the highest value."""
+def keep_strategy(dice):
+    """Strategy for which dice to keep: rank the dice into groups and keep the most matched dice, of the highest value."""
     # group same-value dice together
     grouped = [list(v) for k,v in itertools.groupby(sorted(dice))]
 
@@ -30,14 +30,15 @@ def strategy(dice):
     # keep the first one, the best one, with the longest group and highest value.
     return ranked[0]
 
-def hand(noisy=False):
-    """hand plays a yahtzee hand using strategy to pick which dice to keep, and returns true if a yahtzee was rolled."""
+def hand_wins(noisy=False):
+    """plays a yahtzee hand using keep_strategy, and returns true if it achieved a yahtzee."""
     keep = []
     for n in range(3):
         dice = reroll(keep)
         if noisy:
             print(f"roll {n} is {dice}")
-        keep = strategy(dice)
+        keep = keep_strategy(dice)
+
     best = keep
     yahtzee = len(best) == 5
     #print("got", dice, "best", best, yahtzee)
@@ -50,7 +51,7 @@ def perc(n, m):
 
 def simulate_odds(CNT=10000):
     """simulate_odds plays CNT games and shows how often the strategy got a yahtzee."""
-    cnt = sum(1 for _ in range(CNT) if hand())
+    cnt = sum(1 for _ in range(CNT) if hand_wins())
     print(perc(cnt, CNT))
 
 if __name__ == '__main__':
